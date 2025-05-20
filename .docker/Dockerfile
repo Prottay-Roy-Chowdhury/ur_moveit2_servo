@@ -125,7 +125,7 @@ RUN sed -i 's/\(\s*\)_Bool,/\1BoolType,/' /opt/mech-mind/mech-eye-sdk/include/Pa
 
 
 RUN ["/bin/bash", "-c", "source /opt/ros/$ROS_DISTRO/setup.bash && \
-     colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release"] 
+     colcon build --merge-install --cmake-args -DCMAKE_BUILD_TYPE=Release"] 
 
 
 RUN ["/bin/bash", "-c", "cp /dev_ws/src/.docker/setup.bash /dev_ws/setup.bash && chmod 777 /dev_ws/setup.bash"]

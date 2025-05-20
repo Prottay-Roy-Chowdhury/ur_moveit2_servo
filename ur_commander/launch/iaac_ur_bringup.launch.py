@@ -1,6 +1,9 @@
 import os
 
+from pathlib import Path
 from ament_index_python.packages import get_package_share_directory
+
+from moveit_configs_utils import MoveItConfigsBuilder
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
@@ -31,10 +34,17 @@ def generate_launch_description():  # pylint: disable=missing-function-docstring
 
     ur_robot_driver_share = get_package_share_directory("ur_robot_driver")
     ur_moveit_share = get_package_share_directory("ur_moveit_config")
+
     rviz_config_file = os.path.join(
         get_package_share_directory("ur_commander"),
         "config",
         "robot_viz.rviz",
+    )
+
+    moveit_config = (
+        MoveItConfigsBuilder(robot_name="ur", package_name="ur_moveit_config")
+        .robot_description_semantic(Path("srdf") / "ur.srdf.xacro", {"name": "ur10e"})
+        .to_moveit_configs()
     )
 
     sim_launch_args = {
@@ -83,9 +93,16 @@ def generate_launch_description():  # pylint: disable=missing-function-docstring
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
-        name="rviz2",
+        name="rviz2_moveit",
         output="screen",
         arguments=["-d", rviz_config_file],
+        parameters=[
+            moveit_config.robot_description,
+            moveit_config.robot_description_semantic,
+            moveit_config.robot_description_kinematics,
+            moveit_config.planning_pipelines,
+            moveit_config.joint_limits,
+        ],
     )
 
     return LaunchDescription(
