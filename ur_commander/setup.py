@@ -28,6 +28,8 @@ setup(
         "test": ["pytest"],
     },
     entry_points={
-        "console_scripts": [],
+        "console_scripts": [
+            "commander = ur_commander.commander:main",
+        ],
     },
 )
