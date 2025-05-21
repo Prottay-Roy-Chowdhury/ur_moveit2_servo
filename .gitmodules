@@ -1,6 +1,8 @@
 [submodule "Universal_Robots_ROS2_Driver"]
 	path = Universal_Robots_ROS2_Driver
 	url = git@github.com:HuanyuL/Universal_Robots_ROS2_Driver.git
+	branch = main
 [submodule "mecheye_ros2_interface"]
 	path = mecheye_ros2_interface
 	url = git@github.com:HuanyuL/mecheye_ros2_interface.git
+	branch = main
