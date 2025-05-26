@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 
+from typing import List, Literal, Optional, Tuple, Union
+
 import rclpy
 
-import moveit.core.kinematic_constraints as kinematic_constraints
-
-from typing import Optional, List, Dict, Any, Tuple, Union
 
 from rclpy.logging import get_logger
 
@@ -14,15 +13,25 @@ from rclpy.client import Client
 from rclpy.action import ActionClient
 from rclpy.callback_groups import CallbackGroup
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy, QoSHistoryPolicy, QoSReliabilityPolicy
+from rclpy.task import Future
 
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
+from std_msgs.msg import Header
+from sensor_msgs.msg import JointState
+from shape_msgs.msg import SolidPrimitive
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from moveit_msgs.msg import (
     RobotState,
+    Constraints,
+    MotionPlanRequest,
+    MotionPlanResponse,
+    MotionSequenceRequest,
     AllowedCollisionEntry,
     AttachedCollisionObject,
     CollisionObject,
     Constraints,
     JointConstraint,
+    RobotTrajectory,
     MoveItErrorCodes,
     OrientationConstraint,
     PlanningScene,
@@ -37,10 +46,10 @@ from moveit_msgs.srv import (
     GetPositionIK,
 )
 
-from moveit_msgs.action import ExecuteTrajectory, MoveGroup, MoveGroupSequence
+from moveit_msgs.action import ExecuteTrajectory, MoveGroup, MoveGroupSequence, Pickup, Place
 
-from moveit.core.robot_state import RobotState
-from moveit.core.controller_manager import ExecutionStatus
+# from moveit.core.robot_state import RobotState
+# from moveit.core.controller_manager import ExecutionStatus
 from moveit.planning import (
     MoveItPy,
     PlanningComponent,
@@ -69,9 +78,34 @@ class Commander:
 
         self._node = node
         self._callback_group = callback_group
+        self._move_group = move_group
+        self._base_frame = base_frame
+        self._ee_frame = end_effector_frame
         self._node.get_logger().info("UR Commander Node Initialized")
-
         self._planning_scene = None
+        self._joint_state = None
+        self._joint_names = [
+            "shoulder_pan_joint",
+            "shoulder_lift_joint",
+            "elbow_joint",
+            "wrist_1_joint",
+            "wrist_2_joint",
+            "wrist_3_joint",
+        ]
+
+        # Initialize the subscriber for the joint state
+        self._joint_state_subscriber = self._node.create_subscription(
+            msg_type=JointState,
+            topic="/joint_states",
+            callback=self._joint_state_callback,
+            qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.RELIABLE,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=1,
+            ),
+            callback_group=self._callback_group,
+        )
         # Initialize action client for trajectory execution
         self._execute_trajectory_action_client = ActionClient(
             node=self._node,
@@ -109,6 +143,44 @@ class Commander:
             ),
             callback_group=self._callback_group,
         )
+
+         self.__move_action_client = ActionClient(
+            node=self._node,
+            action_type=MoveGroup,
+            action_name="move_action",
+            goal_service_qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.RELIABLE,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=1,
+            ),
+            result_service_qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.RELIABLE,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=5,
+            ),
+            cancel_service_qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.RELIABLE,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=5,
+            ),
+            feedback_sub_qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.BEST_EFFORT,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=1,
+            ),
+            status_sub_qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.BEST_EFFORT,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=1,
+            ),
+            callback_group=self._callback_group,
+        )
+
 
         # Initialize the service client for planning
         self._plan_kinematic_path_srv = self._node.create_client(
@@ -183,99 +255,437 @@ class Commander:
             callback_group=self._callback_group,
         )
 
-    def _plan_kinematic_path(
+    def execute_trajectory(
         self,
-        request: GetMotionPlan.Request,
-        timeout: float = 5.0,
-    ) -> Union[GetMotionPlan.Response, None]:
+        trajectory: JointTrajectory,
+        wait_until_executed: bool = True,
+    ) -> Optional[Future]:
         """
-        Plan a kinematic path using the MoveIt service
+        Executes the given trajectory using the ExecuteTrajectory action client.
+
+        :param trajectory: The trajectory to execute.
+        :param wait: If True, waits for the execution to complete.
+        :return: Future object if wait is False, otherwise None.
         """
-        if not self._plan_kinematic_path_srv.wait_for_service(timeout_sec=timeout):
+        if trajectory is None:
+            self._node.get_logger().error("No trajectory provided for execution")
             return None
 
-        future = self._plan_kinematic_path_srv.call_async(request)
+        if not self._execute_trajectory_action_client.wait_for_server(timeout_sec=5.0):
+            self._node.get_logger().error("Action server /execute_trajectory is not available")
+            return None
+
+        execute_goal = self._construct_execute_trajectory_goal(trajectory)
+
+        if execute_goal is None:
+            return None
+
+        future = self._execute_trajectory_action_client.send_goal_async(
+            goal=execute_goal,
+            feedback_callback=None,
+        )
+
+        self._node.get_logger().info(
+            f"Sending goal to action server /execute_trajectory with trajectory: {trajectory.joint_trajectory}"
+        )
+
+        if not wait_until_executed:
+            return future
+
+        while rclpy.ok() and not future.done():
+            rclpy.spin_once(self._node, timeout_sec=0.1)
+
         if future.result() is None:
-            self._node.get_logger().error("No result in kinematic path!")
+            self._node.get_logger().error(
+                f"Failed to call action /execute_trajectory: {future.exception()}"
+            )
             return None
         return future.result()
 
-    def _plan_cartesian_path(
+    def plan(
         self,
-        request: GetCartesianPath.Request,
-        timeout: float = 5.0,
-    ) -> Union[GetCartesianPath.Response, None]:
+        pose_goal: MotionPlanRequest = None,
+        joint_goal: MotionPlanRequest = None,
+        pipeline_id: Literal["ompl", "pilz_industrial_motion_planner", "stomp", "chomp"] = "ompl",
+        planner_id: Literal["", "PTP", "LIN", "CIRC", "CHOMP", "STOMP"] = "",
+        acc_scale: float = 0.1,
+        vel_scale: float = 0.1,
+    ) -> MotionPlanResponse:
         """
-        Plan a cartesian path using the MoveIt service
+        Plans a motion based on the provided pose or joint goal.
+
+        :param pose_goal: MotionPlanRequest containing pose constraints.
+        :param joint_goal: MotionPlanRequest containing joint constraints.
+        :param planner_id: The planner to use for the motion plan.
+        :param pipeline_id: The pipeline to use for the motion plan.
+        :param acc_scale: Acceleration scaling factor.
+        :param vel_scale: Velocity scaling factor.
+        :return: MotionPlanResponse containing the planned trajectory.
         """
-        if not self._plan_cartician_path_srv.wait_for_service(timeout_sec=timeout):
+        if pose_goal is None and joint_goal is None:
+            self._node.get_logger().error("No goal provided for planning")
             return None
 
-        future = self._plan_cartician_path_srv.call_async(request)
+        if pose_goal is not None and joint_goal is not None:
+            self._node.get_logger().error(
+                "Both pose and joint goals provided, only one should be set"
+            )
+            return None
+        
+        if not self._plan_kinematic_path_srv.wait_for_service(timeout_sec=5.0):
+            self._node.get_logger().error(
+                "Service /plan_kinematic_path is not available, cannot plan motion"
+            )
+            return None
+        
+        if not self.__move_action_client.wait_for_server(timeout_sec=5.0):
+            self._node.get_logger().error(
+                "Action server /move_action is not available, cannot plan motion"
+            )
+            return None
+
+
+        # Use the provided goal type
+        goal_req = pose_goal if pose_goal is not None else joint_goal
+
+        # Set planner and pipeline IDs
+        goal_req.planner_id = planner_id
+        goal_req.pipeline_id = pipeline_id
+        goal_req.max_acceleration_scaling_factor = acc_scale
+        goal_req.max_velocity_scaling_factor = vel_scale
+
+        request = GetMotionPlan.Request()
+        request.motion_plan_request = goal_req
+
+        move_action_goal = MoveGroup.Goal()
+        move_action_goal.motion_plan_request = goal_req
+        move_action_goal.planning_options.plan_only = True
+
+        future = self.__move_action_client.send_goal_async(
+            goal=move_action_goal,
+            feedback_callback=None,
+        )
+
+        # future = self._plan_kinematic_path_srv.call_async(request)
+
+        while rclpy.ok() and not future.done():
+            rclpy.spin_once(self._node, timeout_sec=0.1)
+
         if future.result() is None:
-            self._node.get_logger().error("No result in cartesian path!")
+            self._node.get_logger().error(
+                f"Failed to call service /plan_kinematic_path: {future.exception()}"
+            )
             return None
-        return future.result()
+        if future.result().motion_plan_response.error_code.val != MoveItErrorCodes.SUCCESS:
+            self._node.get_logger().error(
+                f"Planning failed with error code: {future.result().motion_plan_response.error_code.val}"
+            )
+            return None
+        self._node.get_logger().info("Planning successful")
+        
 
-    def _plan_ik(
+        return future.result().motion_plan_response.trajectory
+
+    def set_pose_goal(
         self,
-        request: GetPositionIK.Request,
-        timeout: float = 2.0,
-    ) -> Union[GetPositionIK.Response, None]:
+        pose: Optional[Union[Pose, PoseStamped]] = None,
+        position: Optional[Union[Point, Tuple[float, float, float]]] = None,
+        quat_xyzw: Optional[Union[Quaternion, Tuple[float, float, float, float]]] = None,
+        frame_id: Optional[str] = None,
+        ee_link: Optional[str] = None,
+        tolerance: float = 0.001,
+        weight: float = 1.0,
+    ) -> MotionPlanRequest:
         """
-        Plan an inverse kinematic path using the MoveIt service
+        Constructs a MotionPlanRequest with the provided parameters.
+
+        :param pose: Pose of the end effector (as Pose or PoseStamped).
+        :param position: Position in 3D space (as Point or tuple).
+        :param quat_xyzw: Quaternion representing the orientation (as Quaternion or tuple).
+        :param frame_id: The frame ID for the constraint.
+        :param ee_link: The end effector link name.
+        :param tolerance: Tolerance for the constraints.
+        :param weight: Weight for the constraints.
+        :return: MotionPlanRequest object.
         """
-        if not self._plan_ik_srv.wait_for_service(timeout_sec=timeout):
-            return None
 
-        future = self._plan_ik_srv.call_async(request)
-        if future.result() is None:
-            self._node.get_logger().error("No result in inverse kinematic path!")
-            return None
-        return future.result()
+        request = self._consctruct_plan_goal_request(
+            group_name=self._move_group,
+            frame_id=frame_id,
+            ee_frame=ee_link,
+        )
 
-    def _plan_fk(
+        # construct pose stamped if pose is provided
+        if isinstance(pose, PoseStamped):
+            pose_stamped = pose
+        elif isinstance(pose, Pose):
+            pose_stamped = PoseStamped()
+            pose_stamped.header = Header(
+                stamp=self._node.get_clock().now().to_msg(), frame_id=frame_id or self._base_frame
+            )
+            pose_stamped.pose = pose
+
+        else:
+            if not isinstance(position, Point):
+                position = Point(x=float(position[0]), y=float(position[1]), z=float(position[2]))
+            if not isinstance(quat_xyzw, Quaternion):
+                quat_xyzw = Quaternion(
+                    x=float(quat_xyzw[0]),
+                    y=float(quat_xyzw[1]),
+                    z=float(quat_xyzw[2]),
+                    w=float(quat_xyzw[3]),
+                )
+            pose_stamped = PoseStamped()
+            pose_stamped.header = Header(
+                stamp=self._node.get_clock().now().to_msg(), frame_id=frame_id or self._base_frame
+            )
+            pose_stamped.pose = Pose(
+                position=position,
+                orientation=quat_xyzw,
+            )
+
+        # Set the goal pose in the request
+        request.goal_constraints[-1].position_constraints.append(
+            self.construct_position_constraint(
+                frame_id=pose_stamped.header.frame_id,
+                ee_link=ee_link,
+                position_xyz=pose_stamped.pose.position,
+                tolerance=tolerance,
+                weight=weight,
+            )
+        )
+        request.goal_constraints[-1].orientation_constraints.append(
+            self.construct_orientation_constraint(
+                frame_id=pose_stamped.header.frame_id,
+                ee_link=ee_link,
+                quat_xyzw=pose_stamped.pose.orientation,
+                tolerance=tolerance,
+                weight=weight,
+            )
+        )
+
+        return request
+
+    def set_joint_goal(
         self,
-        request: GetPositionFK.Request,
-        timeout: float = 2.0,
-    ) -> Union[GetPositionFK.Response, None]:
+        joint_names: Optional[List[str]] = None,
+        joint_values: Optional[List[float]] = None,
+        frame_id: Optional[str] = None,
+        ee_link: Optional[str] = None,
+        tolerance: float = 0.001,
+        weight: float = 1.0,
+    ) -> MotionPlanRequest:
         """
-        Plan a forward kinematic path using the MoveIt service
+        Constructs a MotionPlanRequest with joint constraints.
+
+        :param joint_names: List of joint names.
+        :param joint_values: List of joint values corresponding to the joint names.
+        :param tolerance: Tolerance for the joint constraints.
+        :param weight: Weight for the joint constraints.
+        :return: MotionPlanRequest object.
         """
-        if not self._plan_fk_srv.wait_for_service(timeout_sec=timeout):
-            return None
 
-        future = self._plan_fk_srv.call_async(request)
-        if future.result() is None:
-            self._node.get_logger().error("No result in forward kinematic path!")
-            return None
-        return future.result()
+        request = self._consctruct_plan_goal_request(
+            group_name=self._move_group,
+            frame_id=frame_id,
+            ee_frame=ee_link,
+        )
 
-    def set_pose_target(
+        # If no joint names are provided, use the default ones
+        if joint_names is None:
+            joint_names = self._joint_names
+
+        # Construct joint constraints
+        request.goal_constraints[-1].joint_constraints = self.construct_joint_constraints(
+            joint_names=joint_names,
+            joint_values=joint_values,
+            tolerance=tolerance,
+            weight=weight,
+        )
+
+        return request
+
+    def construct_joint_constraints(
         self,
-        pose: Pose,
-        group_name: str = "ur_manipulator",
-        base_frame: str = "base_link",
-        end_effector_frame: str = "tool0",
-        timeout: float = 5.0,
-    ) -> Union[GetMotionPlan.Response, None]:
+        joint_names: List[str],
+        joint_values: List[float],
+        tolerance: float = 0.001,
+        weight: float = 1.0,
+    ) -> List[JointConstraint]:
         """
-        Set the pose target for the robot using the MoveIt service
+        Constructs a list of JointConstraint objects based on the provided joint names and values.
+
+        :param joint_names: List of joint names.
+        :param joint_values: List of joint values corresponding to the joint names.
+        :param tolerance: Tolerance for the joint constraints.
+        :param weight: Weight for the joint constraints.
+        :return: List of JointConstraint objects.
+        """
+        constraints = []
+        if joint_names is None:
+            joint_names = self._joint_names
+
+        for name, value in zip(joint_names, joint_values):
+            constraint = JointConstraint()
+            constraint.joint_name = name
+            constraint.position = value
+            constraint.tolerance_above = tolerance
+            constraint.tolerance_below = tolerance
+            constraint.weight = weight
+            constraints.append(constraint)
+
+        return constraints
+
+    def construct_orientation_constraint(
+        self,
+        frame_id: str,
+        ee_link: str,
+        quat_xyzw: Union[Quaternion, Tuple[float, float, float, float]],
+        tolerance: float = 0.001,
+        weight: float = 1.0,
+        orientation_type: int = 0,
+    ) -> OrientationConstraint:
+        """
+        Constructs an OrientationConstraint object based on the provided parameters.
+
+        :param frame_id: The frame ID for the constraint.
+        :param ee_link: The end effector link name.
+        :param quat_xyzw: Quaternion representing the orientation (as Quaternion or tuple).
+        :param tolerance: Tolerance for the orientation constraint.
+        :param weight: Weight for the orientation constraint.
+        :param orientation_type: Type of orientation constraint (0 for absolute, 1 for relative).
+        :return: OrientationConstraint object.
+        """
+        constraint = OrientationConstraint()
+        constraint.header.frame_id = frame_id if frame_id is not None else self._base_frame
+        constraint.link_name = ee_link if ee_link is not None else self._ee_frame[0]
+        if isinstance(quat_xyzw, Quaternion):
+            constraint.orientation = quat_xyzw
+        else:
+            constraint.orientation.x = float(quat_xyzw[0])
+            constraint.orientation.y = float(quat_xyzw[1])
+            constraint.orientation.z = float(quat_xyzw[2])
+            constraint.orientation.w = float(quat_xyzw[3])
+
+        constraint.absolute_x_axis_tolerance = tolerance
+        constraint.absolute_y_axis_tolerance = tolerance
+        constraint.absolute_z_axis_tolerance = tolerance
+
+        constraint.weight = weight
+        constraint.parameterization = orientation_type
+        return constraint
+
+    def construct_position_constraint(
+        self,
+        frame_id: str,
+        ee_link: str,
+        position_xyz: Union[Point, Tuple[float, float, float]],
+        tolerance: float = 0.001,
+        weight: float = 1.0,
+    ) -> PositionConstraint:
+        """
+        Constructs a PositionConstraint object based on the provided parameters.
+
+        :param frame_id: The frame ID for the constraint.
+        :param ee_link: The end effector link name.
+        :param position_xyz: Position in 3D space (as Point or tuple).
+        :param tolerance: Tolerance for the position constraint.
+        :param weight: Weight for the position constraint.
+        :return: PositionConstraint object.
+        """
+        constraint = PositionConstraint()
+        constraint.header.frame_id = frame_id if frame_id is not None else self._base_frame
+        constraint.link_name = ee_link if ee_link is not None else self._ee_frame[0]
+
+        if isinstance(position_xyz, Point):
+            constraint.target_point_offset = position_xyz
+        else:
+            constraint.target_point_offset.x = float(position_xyz[0])
+            constraint.target_point_offset.y = float(position_xyz[1])
+            constraint.target_point_offset.z = float(position_xyz[2])
+
+        constraint.constraint_region.primitives.append(SolidPrimitive())
+        constraint.constraint_region.primitives[0].type = SolidPrimitive.SPHERE
+        constraint.constraint_region.primitives[0].dimensions = [tolerance]
+
+        constraint.weight = weight
+
+        return constraint
+
+    def _joint_state_callback(self, msg: JointState) -> None:
+        """
+        Callback for the joint state subscriber.
+        Updates the internal joint state variable with the latest message.
+        """
+        for joint_name in self._joint_names:
+            if joint_name not in msg.name:
+                return
+        self._joint_state = msg
+
+    def _consctruct_plan_goal_request(
+        self,
+        group_name: str,
+        frame_id: str,
+        ee_frame: str,
+    ) -> MotionPlanRequest:
+        """
+        Initializes a MotionPlanRequest with the given parameters.
         """
 
+        if not group_name:
+            group_name = self._move_group
+        if not frame_id:
+            frame_id = self._base_frame
+        if not ee_frame:
+            ee_frame = self._ee_frame[0]
 
-def main(args=None):
-    rclpy.init(args=args)
-    node = rclpy.create_node("ur_commander_node")
-    commander = Commander(node)
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()
+        request = MotionPlanRequest()
+        request.group_name = group_name
+        request.cartesian_speed_limited_link = ee_frame
+        request.num_planning_attempts = 5
+        request.allowed_planning_time = 1.0
+        request.max_velocity_scaling_factor = 0.0
+        request.max_acceleration_scaling_factor = 0.0
+        request.max_cartesian_speed = 0.0
 
+        request.planner_id = ""
+        request.pipeline_id = ""
 
-if __name__ == "__main__":
-    main()
+        # Set the start state to the current joint state
+        if self._joint_state is not None:
+            robot_state = RobotState()
+            robot_state.joint_state = self._joint_state
+            request.start_state = robot_state
+
+        # Set the planning frame and end effector frame
+        request.workspace_parameters.header.frame_id = frame_id
+        request.workspace_parameters.min_corner.x = -1.0
+        request.workspace_parameters.min_corner.y = -1.0
+        request.workspace_parameters.min_corner.z = -1.0
+        request.workspace_parameters.max_corner.x = 1.0
+        request.workspace_parameters.max_corner.y = 1.0
+        request.workspace_parameters.max_corner.z = 1.0
+
+        # Constraints
+        request.path_constraints = Constraints()
+        request.goal_constraints = [Constraints()]
+        return request
+
+    def _construct_execute_trajectory_goal(
+        self,
+        trajectory: RobotTrajectory,
+    ) -> ExecuteTrajectory.Goal:
+        """
+        Constructs an ExecuteTrajectory goal from the provided trajectory.
+
+        :param trajectory: The trajectory to execute.
+        :return: ExecuteTrajectory.Goal object.
+        """
+        if trajectory is None:
+            self._node.get_logger().error("No trajectory provided for execution")
+            return None
+
+        execute_goal = ExecuteTrajectory.Goal()
+        execute_goal.trajectory.joint_trajectory = trajectory.joint_trajectory
+
+        return execute_goal
