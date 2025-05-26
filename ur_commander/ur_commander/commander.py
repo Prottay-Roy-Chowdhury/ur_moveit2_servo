@@ -11,10 +11,23 @@ from rclpy.logging import get_logger
 from rclpy.node import Node
 from rclpy.service import Service
 from rclpy.client import Client
+from rclpy.action import ActionClient
 from rclpy.callback_groups import CallbackGroup
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy, QoSHistoryPolicy, QoSReliabilityPolicy
 
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
+from moveit_msgs.msg import (
+    RobotState,
+    AllowedCollisionEntry,
+    AttachedCollisionObject,
+    CollisionObject,
+    Constraints,
+    JointConstraint,
+    MoveItErrorCodes,
+    OrientationConstraint,
+    PlanningScene,
+    PositionConstraint,
+)
 from moveit_msgs.srv import (
     GetMotionPlan,
     ApplyPlanningScene,
@@ -23,6 +36,8 @@ from moveit_msgs.srv import (
     GetPositionFK,
     GetPositionIK,
 )
+
+from moveit_msgs.action import ExecuteTrajectory, MoveGroup, MoveGroupSequence
 
 from moveit.core.robot_state import RobotState
 from moveit.core.controller_manager import ExecutionStatus
@@ -37,22 +52,62 @@ from moveit.planning import (
 
 class Commander:
     """
-    UR Commander Node for controlling the UR robot using MoveItPy.
+    UR Commander Node for controlling the UR robot using python
 
-    This class initializes the MoveItPy interface and sets up the necessary
-    parameters for planning and executing motions.
+    The Movietpy library is too dumb to use, so we are using the basic services
+    provided by the moveit interface to control the robot.
     """
 
-    def __init__(self, node: Node, callback_group: Optional[CallbackGroup] = None) -> None:
+    def __init__(
+        self,
+        node: Node,
+        callback_group: Optional[CallbackGroup] = None,
+        move_group: str = "ur_manipulator",
+        base_frame: str = "base_link",
+        end_effector_frame: list = ["tool0"],
+    ) -> None:
+
         self._node = node
         self._callback_group = callback_group
         self._node.get_logger().info("UR Commander Node Initialized")
-        # Initialize MoveItPy
-        self.moveit_py = MoveItPy(node_name="ur_commander")
-        self.ur_robot = self.moveit_py.get_planning_component("ur_manipulator")
-        self.scene = self.moveit_py.get_planning_scene_monitor()
-        self.pipeline_plan_request_parameters = MultiPipelinePlanRequestParameters(
-            self.moveit_py, ["ompl", "pilz_lin"]
+
+        self._planning_scene = None
+        # Initialize action client for trajectory execution
+        self._execute_trajectory_action_client = ActionClient(
+            node=self._node,
+            action_type=ExecuteTrajectory,
+            action_name="execute_trajectory",
+            goal_service_qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.RELIABLE,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=1,
+            ),
+            result_service_qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.RELIABLE,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=5,
+            ),
+            cancel_service_qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.RELIABLE,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=5,
+            ),
+            feedback_sub_qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.BEST_EFFORT,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=1,
+            ),
+            status_sub_qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.BEST_EFFORT,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=1,
+            ),
+            callback_group=self._callback_group,
         )
 
         # Initialize the service client for planning
@@ -128,49 +183,85 @@ class Commander:
             callback_group=self._callback_group,
         )
 
-    def set_pose_goal(
+    def _plan_kinematic_path(
         self,
-        pose: Optional[Union[Pose, PoseStamped]] = None,
-        position: Optional[Union[Point, Tuple[float, float, float]]] = None,
-        quat_xyzw: Optional[Union[Quaternion, Tuple[float, float, float, float]]] = None,
-        ee_link: Optional[str] = None,
-        tolerance_potion: float = 0.01,
-        tolerance_orientation: float = 0.01,
-        weight_position: float = 1.0,
-        weight_orientation: float = 1.0,
-    ):
+        request: GetMotionPlan.Request,
+        timeout: float = 5.0,
+    ) -> Union[GetMotionPlan.Response, None]:
         """
-        Set the pose goal for the robot.
-
-        Args:
-            pose (Pose or PoseStamped, optional): The target pose.
-            position (Point or tuple, optional): The target position.
-            quat_xyzw (Quaternion or tuple, optional): The target orientation.
-            ee_link (str, optional): The end effector link name.
-            tolerance_potion (float, optional): Position tolerance.
-            tolerance_orientation (float, optional): Orientation tolerance.
-            weight_position (float, optional): Weight for position constraint.
-            weight_orientation (float, optional): Weight for orientation constraint.
+        Plan a kinematic path using the MoveIt service
         """
+        if not self._plan_kinematic_path_srv.wait_for_service(timeout_sec=timeout):
+            return None
 
-        if pose is None:
-            if position is None or quat_xyzw is None:
-                raise ValueError("Either pose or both position and quat_xyzw must be provided.")
-            pose = Pose()
-            pose.position = Point(*position)
-            pose.orientation = Quaternion(*quat_xyzw)
+        future = self._plan_kinematic_path_srv.call_async(request)
+        if future.result() is None:
+            self._node.get_logger().error("No result in kinematic path!")
+            return None
+        return future.result()
 
-        if ee_link is None:
-            ee_link = self.ur_robot.get_end_effector_link()
+    def _plan_cartesian_path(
+        self,
+        request: GetCartesianPath.Request,
+        timeout: float = 5.0,
+    ) -> Union[GetCartesianPath.Response, None]:
+        """
+        Plan a cartesian path using the MoveIt service
+        """
+        if not self._plan_cartician_path_srv.wait_for_service(timeout_sec=timeout):
+            return None
 
-        self.ur_robot.set_pose_target(
-            pose,
-            end_effector_link=ee_link,
-            tolerance_position=tolerance_potion,
-            tolerance_orientation=tolerance_orientation,
-            weight_position=weight_position,
-            weight_orientation=weight_orientation,
-        )
+        future = self._plan_cartician_path_srv.call_async(request)
+        if future.result() is None:
+            self._node.get_logger().error("No result in cartesian path!")
+            return None
+        return future.result()
+
+    def _plan_ik(
+        self,
+        request: GetPositionIK.Request,
+        timeout: float = 2.0,
+    ) -> Union[GetPositionIK.Response, None]:
+        """
+        Plan an inverse kinematic path using the MoveIt service
+        """
+        if not self._plan_ik_srv.wait_for_service(timeout_sec=timeout):
+            return None
+
+        future = self._plan_ik_srv.call_async(request)
+        if future.result() is None:
+            self._node.get_logger().error("No result in inverse kinematic path!")
+            return None
+        return future.result()
+
+    def _plan_fk(
+        self,
+        request: GetPositionFK.Request,
+        timeout: float = 2.0,
+    ) -> Union[GetPositionFK.Response, None]:
+        """
+        Plan a forward kinematic path using the MoveIt service
+        """
+        if not self._plan_fk_srv.wait_for_service(timeout_sec=timeout):
+            return None
+
+        future = self._plan_fk_srv.call_async(request)
+        if future.result() is None:
+            self._node.get_logger().error("No result in forward kinematic path!")
+            return None
+        return future.result()
+
+    def set_pose_target(
+        self,
+        pose: Pose,
+        group_name: str = "ur_manipulator",
+        base_frame: str = "base_link",
+        end_effector_frame: str = "tool0",
+        timeout: float = 5.0,
+    ) -> Union[GetMotionPlan.Response, None]:
+        """
+        Set the pose target for the robot using the MoveIt service
+        """
 
 
 def main(args=None):
