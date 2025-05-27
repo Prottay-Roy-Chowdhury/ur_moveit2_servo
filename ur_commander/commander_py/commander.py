@@ -3,54 +3,50 @@
 from typing import List, Literal, Optional, Tuple, Union
 
 import rclpy
-
-
-from rclpy.logging import get_logger
-
-from rclpy.node import Node
 from rclpy.action import ActionClient
 from rclpy.callback_groups import CallbackGroup
-from rclpy.qos import QoSProfile, QoSDurabilityPolicy, QoSHistoryPolicy, QoSReliabilityPolicy
+from rclpy.node import Node
+from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSProfile, QoSReliabilityPolicy
 from rclpy.task import Future
-
-from geometry_msgs.msg import PoseStamped, Pose, PoseArray, Point, Quaternion
-from std_msgs.msg import Header, ColorRGBA
+from geometry_msgs.msg import Point, Pose, PoseArray, PoseStamped, Quaternion
+from std_msgs.msg import ColorRGBA, Header
 from sensor_msgs.msg import JointState
 from shape_msgs.msg import SolidPrimitive
+from trajectory_msgs.msg import JointTrajectory
 from visualization_msgs.msg import Marker, MarkerArray
-from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+
 from moveit_msgs.msg import (
-    RobotState,
-    Constraints,
-    MotionPlanRequest,
-    MotionPlanResponse,
-    MotionSequenceRequest,
     AllowedCollisionEntry,
     AttachedCollisionObject,
     CollisionObject,
     Constraints,
     JointConstraint,
-    RobotTrajectory,
+    MotionPlanRequest,
+    MotionPlanResponse,
+    MotionSequenceRequest,
     MoveItErrorCodes,
     OrientationConstraint,
     PlanningScene,
     PositionConstraint,
+    RobotState,
+    RobotTrajectory,
 )
 from moveit_msgs.srv import (
-    GetMotionPlan,
     ApplyPlanningScene,
-    GetMotionSequence,
     GetCartesianPath,
+    GetMotionPlan,
+    GetMotionSequence,
     GetPositionFK,
     GetPositionIK,
 )
+from moveit_msgs.action import ExecuteTrajectory, MoveGroup, MoveGroupSequence
+
 from ur_commander.srv import VisualizePoses
-from moveit_msgs.action import ExecuteTrajectory, MoveGroup, MoveGroupSequence, Pickup, Place
 
 
 class Commander:
     """
-    UR Commander Node for controlling the UR robot using python
+    UR Commander Node for controlling the UR robot using python.
 
     The Movietpy library is too dumb to use, so we are using the basic services
     provided by the moveit interface to control the robot.
@@ -291,7 +287,7 @@ class Commander:
         wait_until_executed: bool = True,
     ) -> Optional[Future]:
         """
-        Executes the given trajectory using the ExecuteTrajectory action client.
+        Execute the given trajectory using the ExecuteTrajectory action client.
 
         :param trajectory: The trajectory to execute.
         :param wait: If True, waits for the execution to complete.
@@ -429,7 +425,7 @@ class Commander:
         weight: float = 1.0,
     ) -> MotionPlanRequest:
         """
-        Constructs a MotionPlanRequest with the provided parameters.
+        Construct a MotionPlanRequest with the provided parameters.
 
         :param pose: Pose of the end effector (as Pose or PoseStamped).
         :param position: Position in 3D space (as Point or tuple).
@@ -440,7 +436,6 @@ class Commander:
         :param weight: Weight for the constraints.
         :return: MotionPlanRequest object.
         """
-
         request = self._consctruct_plan_goal_request(
             group_name=self._move_group,
             frame_id=frame_id,
@@ -508,7 +503,7 @@ class Commander:
         weight: float = 1.0,
     ) -> MotionPlanRequest:
         """
-        Constructs a MotionPlanRequest with joint constraints.
+        Construct a MotionPlanRequest with joint constraints.
 
         :param joint_names: List of joint names.
         :param joint_values: List of joint values corresponding to the joint names.
@@ -516,7 +511,6 @@ class Commander:
         :param weight: Weight for the joint constraints.
         :return: MotionPlanRequest object.
         """
-
         request = self._consctruct_plan_goal_request(
             group_name=self._move_group,
             frame_id=frame_id,
@@ -545,7 +539,7 @@ class Commander:
         weight: float = 1.0,
     ) -> List[JointConstraint]:
         """
-        Constructs a list of JointConstraint objects based on the provided joint names and values.
+        Construct a list of JointConstraint objects based on the provided joint names and values.
 
         :param joint_names: List of joint names.
         :param joint_values: List of joint values corresponding to the joint names.
@@ -578,7 +572,7 @@ class Commander:
         orientation_type: int = 0,
     ) -> OrientationConstraint:
         """
-        Constructs an OrientationConstraint object based on the provided parameters.
+        Construct an OrientationConstraint object based on the provided parameters.
 
         :param frame_id: The frame ID for the constraint.
         :param ee_link: The end effector link name.
@@ -616,7 +610,7 @@ class Commander:
         weight: float = 1.0,
     ) -> PositionConstraint:
         """
-        Constructs a PositionConstraint object based on the provided parameters.
+        Construct a PositionConstraint object based on the provided parameters.
 
         :param frame_id: The frame ID for the constraint.
         :param ee_link: The end effector link name.
@@ -697,6 +691,7 @@ class Commander:
     def _joint_state_callback(self, msg: JointState) -> None:
         """
         Callback for the joint state subscriber.
+
         Updates the internal joint state variable with the latest message.
         """
         for joint_name in self._joint_names:
@@ -711,7 +706,7 @@ class Commander:
         ee_frame: str,
     ) -> MotionPlanRequest:
         """
-        Initializes a MotionPlanRequest with the given parameters.
+        Initialize a MotionPlanRequest with the given parameters.
         """
 
         if not group_name:
@@ -803,7 +798,7 @@ class Commander:
         trajectory: RobotTrajectory,
     ) -> None:
         """
-        Publishes the trajectory for visualization.
+        Publish the trajectory for visualization.
 
         :param trajectory: The trajectory to visualize.
         """
@@ -857,3 +852,8 @@ class Commander:
 
             marker_array.markers.append(marker)
         self.trajectory_visualization_publisher.publish(marker_array)
+
+    @property
+    def joint_state(self) -> Optional[JointState]:
+        """Return the current joint state of the robot."""
+        return self._joint_state
