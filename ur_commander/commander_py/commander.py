@@ -8,17 +8,16 @@ import rclpy
 from rclpy.logging import get_logger
 
 from rclpy.node import Node
-from rclpy.service import Service
-from rclpy.client import Client
 from rclpy.action import ActionClient
 from rclpy.callback_groups import CallbackGroup
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy, QoSHistoryPolicy, QoSReliabilityPolicy
 from rclpy.task import Future
 
-from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
-from std_msgs.msg import Header
+from geometry_msgs.msg import PoseStamped, Pose, PoseArray, Point, Quaternion
+from std_msgs.msg import Header, ColorRGBA
 from sensor_msgs.msg import JointState
 from shape_msgs.msg import SolidPrimitive
+from visualization_msgs.msg import Marker, MarkerArray
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from moveit_msgs.msg import (
     RobotState,
@@ -45,18 +44,8 @@ from moveit_msgs.srv import (
     GetPositionFK,
     GetPositionIK,
 )
-
+from ur_commander.srv import VisualizePoses
 from moveit_msgs.action import ExecuteTrajectory, MoveGroup, MoveGroupSequence, Pickup, Place
-
-# from moveit.core.robot_state import RobotState
-# from moveit.core.controller_manager import ExecutionStatus
-from moveit.planning import (
-    MoveItPy,
-    PlanningComponent,
-    MultiPipelinePlanRequestParameters,
-    PlanRequestParameters,
-    TrajectoryExecutionManager,
-)
 
 
 class Commander:
@@ -106,6 +95,7 @@ class Commander:
             ),
             callback_group=self._callback_group,
         )
+
         # Initialize action client for trajectory execution
         self._execute_trajectory_action_client = ActionClient(
             node=self._node,
@@ -144,7 +134,9 @@ class Commander:
             callback_group=self._callback_group,
         )
 
-         self.__move_action_client = ActionClient(
+        # Initialize the action client for move group,
+        # apparently we can only animate the motion through this action client
+        self._move_action_client = ActionClient(
             node=self._node,
             action_type=MoveGroup,
             action_name="move_action",
@@ -180,7 +172,6 @@ class Commander:
             ),
             callback_group=self._callback_group,
         )
-
 
         # Initialize the service client for planning
         self._plan_kinematic_path_srv = self._node.create_client(
@@ -255,6 +246,45 @@ class Commander:
             callback_group=self._callback_group,
         )
 
+        # Initialize the publisher for the visualization
+        self.pose_visualization_publisher = self._node.create_publisher(
+            msg_type=PoseArray,
+            topic="/commander_viz/pose_array",
+            qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.RELIABLE,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=1,
+            ),
+            callback_group=self._callback_group,
+        )
+
+        self.trajectory_visualization_publisher = self._node.create_publisher(
+            msg_type=MarkerArray,
+            topic="/commander_viz/trajectory",
+            qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.RELIABLE,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=1,
+            ),
+            callback_group=self._callback_group,
+        )
+
+        # Initialize the service for pose visualization
+        self.pose_visualization_service = self._node.create_service(
+            srv_type=GetMotionPlan,
+            srv_name="/commander_viz/pose_visualization",
+            callback=self._pose_visualization_callback,
+            qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.RELIABLE,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=1,
+            ),
+            callback_group=self._callback_group,
+        )
+
     def execute_trajectory(
         self,
         trajectory: JointTrajectory,
@@ -286,7 +316,7 @@ class Commander:
         )
 
         self._node.get_logger().info(
-            f"Sending goal to action server /execute_trajectory with trajectory: {trajectory.joint_trajectory}"
+            "Sending goal to action server /execute_trajectory with trajectory"
         )
 
         if not wait_until_executed:
@@ -331,19 +361,18 @@ class Commander:
                 "Both pose and joint goals provided, only one should be set"
             )
             return None
-        
+
         if not self._plan_kinematic_path_srv.wait_for_service(timeout_sec=5.0):
             self._node.get_logger().error(
                 "Service /plan_kinematic_path is not available, cannot plan motion"
             )
             return None
-        
-        if not self.__move_action_client.wait_for_server(timeout_sec=5.0):
+
+        if not self._move_action_client.wait_for_server(timeout_sec=5.0):
             self._node.get_logger().error(
                 "Action server /move_action is not available, cannot plan motion"
             )
             return None
-
 
         # Use the provided goal type
         goal_req = pose_goal if pose_goal is not None else joint_goal
@@ -354,37 +383,40 @@ class Commander:
         goal_req.max_acceleration_scaling_factor = acc_scale
         goal_req.max_velocity_scaling_factor = vel_scale
 
-        request = GetMotionPlan.Request()
-        request.motion_plan_request = goal_req
-
         move_action_goal = MoveGroup.Goal()
-        move_action_goal.motion_plan_request = goal_req
+        move_action_goal.request = goal_req
         move_action_goal.planning_options.plan_only = True
 
-        future = self.__move_action_client.send_goal_async(
+        send_goal_future = self._move_action_client.send_goal_async(
             goal=move_action_goal,
             feedback_callback=None,
         )
 
-        # future = self._plan_kinematic_path_srv.call_async(request)
-
-        while rclpy.ok() and not future.done():
+        while not send_goal_future.done():
             rclpy.spin_once(self._node, timeout_sec=0.1)
 
-        if future.result() is None:
-            self._node.get_logger().error(
-                f"Failed to call service /plan_kinematic_path: {future.exception()}"
-            )
-            return None
-        if future.result().motion_plan_response.error_code.val != MoveItErrorCodes.SUCCESS:
-            self._node.get_logger().error(
-                f"Planning failed with error code: {future.result().motion_plan_response.error_code.val}"
-            )
-            return None
-        self._node.get_logger().info("Planning successful")
-        
+        goal_handle = send_goal_future.result()
 
-        return future.result().motion_plan_response.trajectory
+        if not goal_handle.accepted:
+            self._node.get_logger().error("Goal was rejected by the action server /move_action")
+            return None
+
+        result_future = goal_handle.get_result_async()
+        while not result_future.done():
+            rclpy.spin_once(self._node, timeout_sec=0.1)
+
+        result = result_future.result().result
+
+        self._node.get_logger().info("Planning successful")
+        if result.error_code.val != MoveItErrorCodes.SUCCESS:
+            self._node.get_logger().error(
+                f"Planning failed with error code: {result.error_code.val}"
+            )
+            return None
+
+        self._visualize_trajectory(result.planned_trajectory)
+
+        return result.planned_trajectory
 
     def set_pose_goal(
         self,
@@ -612,6 +644,56 @@ class Commander:
 
         return constraint
 
+    def compute_fk(
+        self,
+        joint_state: Optional[Union[JointState, List[float]]] = None,
+        ee_link: Optional[str] = None,
+    ) -> Optional[Future]:
+        """
+        Computes the forward kinematics for the given joint state.
+
+        :param joint_state: JointState message or list of joint values.
+        :param ee_link: The end effector link name.
+        :return: Future object containing the computed pose.
+        """
+        if not self._plan_fk_srv.wait_for_service(timeout_sec=5.0):
+            self._node.get_logger().error("Service /compute_fk is not available")
+            return None
+
+        request = GetPositionFK.Request()
+        request.header.frame_id = self._base_frame
+        request.header.stamp = self._node.get_clock().now().to_msg()
+        request.fk_link_names = ee_link if ee_link is not None else self._ee_frame
+
+        if joint_state is not None:
+            if isinstance(joint_state, JointState):
+                request.robot_state.joint_state = joint_state
+                request.robot_state.joint_state.name = self._joint_names
+            elif isinstance(joint_state, list):
+                joint_state_msg = JointState()
+                joint_state_msg.name = self._joint_names
+                joint_state_msg.position = joint_state
+                request.robot_state.joint_state = joint_state_msg
+            else:
+                self._node.get_logger().error("Invalid joint state provided for FK computation")
+                return None
+        else:
+            self._node.get_logger().error("No joint state provided for FK computation")
+            return None
+
+        future = self._plan_fk_srv.call_async(request)
+
+        while not future.done():
+            rclpy.spin_once(self._node, timeout_sec=0.1)
+
+        if future.result() is None:
+            self._node.get_logger().error(
+                f"Failed to call service /compute_fk: {future.exception()}"
+            )
+            return None
+
+        return future.result().pose_stamped[0]
+
     def _joint_state_callback(self, msg: JointState) -> None:
         """
         Callback for the joint state subscriber.
@@ -689,3 +771,89 @@ class Commander:
         execute_goal.trajectory.joint_trajectory = trajectory.joint_trajectory
 
         return execute_goal
+
+    def _pose_visualization_callback(
+        self,
+        request: VisualizePoses.Request,
+        response: VisualizePoses.Response,
+    ) -> VisualizePoses.Response:
+        """
+        Callback for the pose visualization service.
+        Publishes the poses in the request to the visualization topic.
+        """
+        if not request.poses:
+            self._node.get_logger().error("No poses provided for visualization")
+            return response
+
+        pose_array = PoseArray()
+        pose_array.header = Header(
+            stamp=self._node.get_clock().now().to_msg(),
+            frame_id=request.frame_id or self._base_frame,
+        )
+        pose_array.poses = request.poses
+
+        # Put the text of frame_ over the pose in the pose array
+
+        self.pose_visualization_publisher.publish(pose_array)
+        response.success = True
+        return response
+
+    def _visualize_trajectory(
+        self,
+        trajectory: RobotTrajectory,
+    ) -> None:
+        """
+        Publishes the trajectory for visualization.
+
+        :param trajectory: The trajectory to visualize.
+        """
+        if trajectory is None:
+            self._node.get_logger().error("No trajectory provided for visualization")
+
+        n = len(trajectory.joint_trajectory.points)
+
+        # Clear previous markers
+        marker_array = MarkerArray()
+        marker = Marker()
+        marker.header = Header(
+            stamp=self._node.get_clock().now().to_msg(),
+            frame_id=self._base_frame,
+        )
+        marker.ns = "trajectory"
+        marker.action = Marker.DELETEALL
+        marker_array.markers.append(marker)
+        self.trajectory_visualization_publisher.publish(marker_array)
+
+        # render the trajectory as a marker array with gradient color
+
+        for i, point in enumerate(trajectory.joint_trajectory.points):
+            ee_pose_stamped = self.compute_fk(
+                joint_state=list(point.positions),
+                ee_link=self._ee_frame,
+            )
+            marker = Marker()
+            marker.header = Header(
+                stamp=self._node.get_clock().now().to_msg(),
+                frame_id=self._base_frame,
+            )
+            marker.ns = "trajectory"
+            marker.id = i
+            marker.type = Marker.SPHERE
+            marker.action = Marker.ADD
+            marker.pose = Pose()
+            marker.scale.x, marker.scale.y, marker.scale.z = 0.02, 0.02, 0.02
+
+            marker.pose = ee_pose_stamped.pose
+
+            # Gradient color from orange to red
+            r = i / (n - 1) if n > 1 else 1.0
+            b = (1.0 - r) * 0.5
+            marker.color = ColorRGBA(
+                r=r,
+                g=0.0,
+                b=b,
+                a=1.0,
+            )
+
+            marker_array.markers.append(marker)
+        self.trajectory_visualization_publisher.publish(marker_array)
