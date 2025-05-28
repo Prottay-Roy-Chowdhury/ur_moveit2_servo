@@ -33,6 +33,7 @@ from moveit_msgs.msg import (
 )
 from moveit_msgs.srv import (
     ApplyPlanningScene,
+    GetPlanningScene,
     GetCartesianPath,
     GetMotionPlan,
     GetMotionSequence,
@@ -230,6 +231,18 @@ class Commander:
             callback_group=self._callback_group,
         )
 
+        self._get_planning_scene_srv = self._node.create_client(
+            srv_type=GetPlanningScene,
+            srv_name="/get_planning_scene",
+            qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.RELIABLE,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=1,
+            ),
+            callback_group=self._callback_group,
+        )
+
         self._apply_planning_scene_srv = self._node.create_client(
             srv_type=ApplyPlanningScene,
             srv_name="/apply_planning_scene",
@@ -306,7 +319,7 @@ class Commander:
         if execute_goal is None:
             return None
 
-        future = self._execute_trajectory_action_client.send_goal_async(
+        send_goal_future = self._execute_trajectory_action_client.send_goal_async(
             goal=execute_goal,
             feedback_callback=None,
         )
@@ -315,18 +328,29 @@ class Commander:
             "Sending goal to action server /execute_trajectory with trajectory"
         )
 
-        if not wait_until_executed:
-            return future
-
-        while rclpy.ok() and not future.done():
+        while not send_goal_future.done():
             rclpy.spin_once(self._node, timeout_sec=0.1)
 
-        if future.result() is None:
+        goal_handle = send_goal_future.result()
+
+        if goal_handle is None or not goal_handle.accepted:
             self._node.get_logger().error(
-                f"Failed to call action /execute_trajectory: {future.exception()}"
+                "Goal was rejected by the action server /execute_trajectory"
             )
             return None
-        return future.result()
+
+        self._node.get_logger().info("Goal accepted by action server /execute_trajectory")
+
+        get_result_future = goal_handle.get_result_async()
+
+        if not wait_until_executed:
+            return get_result_future
+
+        while rclpy.ok() and not get_result_future.done():
+            rclpy.spin_once(self._node, timeout_sec=0.1)
+
+        self._node.get_logger().info("Execution completed")
+        return get_result_future.result()
 
     def plan(
         self,
@@ -707,8 +731,8 @@ class Commander:
     ) -> MotionPlanRequest:
         """
         Initialize a MotionPlanRequest with the given parameters.
-        """
 
+        """
         if not group_name:
             group_name = self._move_group
         if not frame_id:
@@ -774,6 +798,7 @@ class Commander:
     ) -> VisualizePoses.Response:
         """
         Callback for the pose visualization service.
+
         Publishes the poses in the request to the visualization topic.
         """
         if not request.poses:
@@ -815,6 +840,7 @@ class Commander:
             frame_id=self._base_frame,
         )
         marker.ns = "trajectory"
+        marker.id = -1
         marker.action = Marker.DELETEALL
         marker_array.markers.append(marker)
         self.trajectory_visualization_publisher.publish(marker_array)
