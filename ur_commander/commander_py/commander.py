@@ -170,6 +170,44 @@ class Commander:
             callback_group=self._callback_group,
         )
 
+        # Initialize the action client for sequence move group
+        self._move_sequence_action_client = ActionClient(
+            node=self._node,
+            action_type=MoveGroupSequence,
+            action_name="move_sequence_action",
+            goal_service_qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.RELIABLE,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=1,
+            ),
+            result_service_qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.RELIABLE,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=5,
+            ),
+            cancel_service_qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.RELIABLE,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=5,
+            ),
+            feedback_sub_qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.BEST_EFFORT,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=1,
+            ),
+            status_sub_qos_profile=QoSProfile(
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.BEST_EFFORT,
+                history=QoSHistoryPolicy.KEEP_LAST,
+                depth=1,
+            ),
+            callback_group=self._callback_group,
+        )
+
         # Initialize the service client for planning
         self._plan_kinematic_path_srv = self._node.create_client(
             srv_type=GetMotionPlan,
@@ -437,6 +475,114 @@ class Commander:
         self._visualize_trajectory(result.planned_trajectory)
 
         return result.planned_trajectory
+
+    def plan_sequence(
+        self,
+        pose_goals: List[MotionPlanRequest] = None,
+        joint_goals: List[MotionPlanRequest] = None,
+        pipeline_ids: Optional[
+            List[Literal["ompl", "pilz_industrial_motion_planner", "stomp", "chomp"]]
+        ] = None,
+        planner_ids: Optional[List[Literal["", "PTP", "LIN", "CIRC", "CHOMP", "STOMP"]]] = None,
+        blends: Optional[List[float]] = None,
+        acc_scale: float = 0.1,
+        vel_scale: float = 0.1,
+    ) -> MotionSequenceRequest:
+        """
+        Plans a motion sequence based on the provided pose or joint goals.
+
+        :param pose_goals: List of MotionPlanRequest containing pose constraints.
+        :param joint_goals: List of MotionPlanRequest containing joint constraints.
+        :param planner_id: The planner to use for the motion plan.
+        :param pipeline_id: The pipeline to use for the motion plan.
+        :param acc_scale: Acceleration scaling factor.
+        :param vel_scale: Velocity scaling factor.
+        :return: MotionSequenceRequest containing the planned trajectory.
+        """
+        if pose_goals is None and joint_goals is None:
+            self._node.get_logger().error("No goals provided for planning sequence")
+            return None
+
+        if pose_goals is not None and joint_goals is not None:
+            self._node.get_logger().error(
+                "Both pose and joint goals provided, only one should be set"
+            )
+            return None
+
+        if not self._plan_sequence_srv.wait_for_service(timeout_sec=5.0):
+            self._node.get_logger().error(
+                "Service /plan_motion_sequence is not available, cannot plan motion sequence"
+            )
+            return None
+
+        if not self._move_sequence_action_client.wait_for_server(timeout_sec=5.0):
+            self._node.get_logger().error(
+                "Action server /move_sequence_action is not available, cannot plan motion sequence"
+            )
+            return None
+
+        # Use the provided goal type
+        goal_req = pose_goals if pose_goals is not None else joint_goals
+
+        # Set planner and pipeline IDs, defaulting if not provided
+        if pipeline_ids is None:
+            pipeline_ids = ["ompl"] * len(goal_req)
+        if planner_ids is None:
+            planner_ids = [""] * len(goal_req)
+        if blends is None:
+            blends = [0.0] * len(goal_req)
+
+        # The last blend values has to be 0.0
+        blends[-1] = 0.0
+        sequence_req = MotionSequenceRequest()
+
+        for i, req in enumerate(goal_req):
+            req.planner_id = planner_ids[i]
+            req.pipeline_id = pipeline_ids[i]
+            req.max_acceleration_scaling_factor = acc_scale
+            req.max_velocity_scaling_factor = vel_scale
+            sequence_req.items.append(req)
+
+        move_sequence_goal = MoveGroupSequence.Goal()
+        move_sequence_goal.request = sequence_req
+        move_sequence_goal.planning_options.plan_only = True
+        move_sequence_goal.blend_radius = blends
+
+        send_goal_future = self._move_sequence_action_client.send_goal_async(
+            goal=move_sequence_goal,
+            feedback_callback=None,
+        )
+
+        while not send_goal_future.done():
+            rclpy.spin_once(self._node, timeout_sec=0.1)
+
+        goal_handle = send_goal_future.result()
+
+        if not goal_handle.accepted:
+            self._node.get_logger().error(
+                "Goal was rejected by the action server /move_sequence_action"
+            )
+            return None
+
+        result_future = goal_handle.get_result_async()
+        while not result_future.done():
+            rclpy.spin_once(self._node, timeout_sec=0.1)
+
+        if result_future.result() is None:
+            self._node.get_logger().error(
+                "Failed to get result from action server /move_sequence_action"
+            )
+            return None
+
+        result = result_future.result().result
+        if result.error_code.val != MoveItErrorCodes.SUCCESS:
+            self._node.get_logger().error(
+                f"Planning sequence failed with error code: {result.error_code.val}"
+            )
+            return None
+
+        self._node.get_logger().info("Planning sequence successful")
+        self._visualize_trajectory(result.planned_trajectories[0])
 
     def set_pose_goal(
         self,
