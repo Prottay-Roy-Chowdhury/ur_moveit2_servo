@@ -105,6 +105,13 @@ def generate_launch_description():  # pylint: disable=missing-function-docstring
         ],
     )
 
+    commander_viz = Node(
+        package="ur_commander",
+        executable="commander_viz.py",
+        name="commander_viz",
+        output="screen",
+    )
+
     return LaunchDescription(
         [
             sim_arg,
@@ -113,5 +120,6 @@ def generate_launch_description():  # pylint: disable=missing-function-docstring
             ur_robot_driver_real,
             ur_moveit,
             rviz_node,
+            commander_viz,
         ]
     )

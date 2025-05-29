@@ -39,10 +39,10 @@ install(
   DESTINATION share/${PROJECT_NAME}/
 )
 
-# install(PROGRAMS
-#   src/ur_commander/commander.py
-#   DESTINATION lib/${PROJECT_NAME}
-# )
+install(PROGRAMS
+  commander_py/commander_viz.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 # Testing
 if(BUILD_TESTING)

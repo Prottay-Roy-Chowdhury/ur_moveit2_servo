@@ -8,7 +8,7 @@ from rclpy.callback_groups import CallbackGroup
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSHistoryPolicy, QoSProfile, QoSReliabilityPolicy
 from rclpy.task import Future
-from geometry_msgs.msg import Point, Pose, PoseArray, PoseStamped, Quaternion
+from geometry_msgs.msg import Point, Pose, PoseArray, PoseStamped, Quaternion, Vector3
 from std_msgs.msg import ColorRGBA, Header
 from sensor_msgs.msg import JointState
 from shape_msgs.msg import SolidPrimitive
@@ -24,6 +24,7 @@ from moveit_msgs.msg import (
     MotionPlanRequest,
     MotionPlanResponse,
     MotionSequenceRequest,
+    MotionSequenceItem,
     MoveItErrorCodes,
     OrientationConstraint,
     PlanningScene,
@@ -293,36 +294,9 @@ class Commander:
             callback_group=self._callback_group,
         )
 
-        # Initialize the publisher for the visualization
-        self.pose_visualization_publisher = self._node.create_publisher(
-            msg_type=PoseArray,
-            topic="/commander_viz/pose_array",
-            qos_profile=QoSProfile(
-                durability=QoSDurabilityPolicy.VOLATILE,
-                reliability=QoSReliabilityPolicy.RELIABLE,
-                history=QoSHistoryPolicy.KEEP_LAST,
-                depth=1,
-            ),
-            callback_group=self._callback_group,
-        )
-
         self.trajectory_visualization_publisher = self._node.create_publisher(
             msg_type=MarkerArray,
             topic="/commander_viz/trajectory",
-            qos_profile=QoSProfile(
-                durability=QoSDurabilityPolicy.VOLATILE,
-                reliability=QoSReliabilityPolicy.RELIABLE,
-                history=QoSHistoryPolicy.KEEP_LAST,
-                depth=1,
-            ),
-            callback_group=self._callback_group,
-        )
-
-        # Initialize the service for pose visualization
-        self.pose_visualization_service = self._node.create_service(
-            srv_type=GetMotionPlan,
-            srv_name="/commander_viz/pose_visualization",
-            callback=self._pose_visualization_callback,
             qos_profile=QoSProfile(
                 durability=QoSDurabilityPolicy.VOLATILE,
                 reliability=QoSReliabilityPolicy.RELIABLE,
@@ -534,19 +508,19 @@ class Commander:
 
         # The last blend values has to be 0.0
         blends[-1] = 0.0
-        sequence_req = MotionSequenceRequest()
-
-        for i, req in enumerate(goal_req):
-            req.planner_id = planner_ids[i]
-            req.pipeline_id = pipeline_ids[i]
-            req.max_acceleration_scaling_factor = acc_scale
-            req.max_velocity_scaling_factor = vel_scale
-            sequence_req.items.append(req)
-
         move_sequence_goal = MoveGroupSequence.Goal()
-        move_sequence_goal.request = sequence_req
-        move_sequence_goal.planning_options.plan_only = True
-        move_sequence_goal.blend_radius = blends
+        sequence_req_items = MotionSequenceItem()
+
+        for i, goal in enumerate(goal_req):
+            sequence_req_items.req.append(goal)
+            sequence_req_items.req.planner_id.append(planner_ids[i])
+            sequence_req_items.req.pipeline_id.append(pipeline_ids[i])
+            sequence_req_items.req.max_acceleration_scaling_factor.append(acc_scale)
+            sequence_req_items.req.max_velocity_scaling_factor.append(vel_scale)
+
+        sequence_req_items.blend_radius = blends
+
+        move_sequence_goal.request.items = sequence_req_items
 
         send_goal_future = self._move_sequence_action_client.send_goal_async(
             goal=move_sequence_goal,
@@ -583,6 +557,8 @@ class Commander:
 
         self._node.get_logger().info("Planning sequence successful")
         self._visualize_trajectory(result.planned_trajectories[0])
+
+        return result.planned_trajectories[0]
 
     def set_pose_goal(
         self,
@@ -793,16 +769,20 @@ class Commander:
         constraint.header.frame_id = frame_id if frame_id is not None else self._base_frame
         constraint.link_name = ee_link if ee_link is not None else self._ee_frame[0]
 
-        if isinstance(position_xyz, Point):
-            constraint.target_point_offset = position_xyz
-        else:
-            constraint.target_point_offset.x = float(position_xyz[0])
-            constraint.target_point_offset.y = float(position_xyz[1])
-            constraint.target_point_offset.z = float(position_xyz[2])
+        primitive = SolidPrimitive()
+        primitive.type = SolidPrimitive.SPHERE
+        primitive.dimensions = [tolerance]
+        constraint.constraint_region.primitives.append(primitive)
 
-        constraint.constraint_region.primitives.append(SolidPrimitive())
-        constraint.constraint_region.primitives[0].type = SolidPrimitive.SPHERE
-        constraint.constraint_region.primitives[0].dimensions = [tolerance]
+        pose = Pose()
+        if isinstance(position_xyz, Point):
+            pose.position = position_xyz
+        else:
+            pose.position = Point(*position_xyz)
+        pose.orientation.w = 1.0  # Identity quaternion
+        constraint.constraint_region.primitive_poses.append(pose)
+
+        constraint.target_point_offset = Vector3(x=0.0, y=0.0, z=0.0)
 
         constraint.weight = weight
 
@@ -906,13 +886,8 @@ class Commander:
 
         # Set the planning frame and end effector frame
         request.workspace_parameters.header.frame_id = frame_id
-        request.workspace_parameters.min_corner.x = -1.0
-        request.workspace_parameters.min_corner.y = -1.0
-        request.workspace_parameters.min_corner.z = -1.0
-        request.workspace_parameters.max_corner.x = 1.0
-        request.workspace_parameters.max_corner.y = 1.0
-        request.workspace_parameters.max_corner.z = 1.0
-
+        request.workspace_parameters.min_corner = Vector3(x=-1.0, y=-1.0, z=-1.0)
+        request.workspace_parameters.max_corner = Vector3(x=1.0, y=1.0, z=1.0)
         # Constraints
         request.path_constraints = Constraints()
         request.goal_constraints = [Constraints()]
@@ -936,33 +911,6 @@ class Commander:
         execute_goal.trajectory.joint_trajectory = trajectory.joint_trajectory
 
         return execute_goal
-
-    def _pose_visualization_callback(
-        self,
-        request: VisualizePoses.Request,
-        response: VisualizePoses.Response,
-    ) -> VisualizePoses.Response:
-        """
-        Callback for the pose visualization service.
-
-        Publishes the poses in the request to the visualization topic.
-        """
-        if not request.poses:
-            self._node.get_logger().error("No poses provided for visualization")
-            return response
-
-        pose_array = PoseArray()
-        pose_array.header = Header(
-            stamp=self._node.get_clock().now().to_msg(),
-            frame_id=request.frame_id or self._base_frame,
-        )
-        pose_array.poses = request.poses
-
-        # Put the text of frame_ over the pose in the pose array
-
-        self.pose_visualization_publisher.publish(pose_array)
-        response.success = True
-        return response
 
     def _visualize_trajectory(
         self,
