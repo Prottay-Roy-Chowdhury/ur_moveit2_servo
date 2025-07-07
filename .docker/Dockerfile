@@ -40,7 +40,7 @@ RUN curl -ssL -O https://security.ubuntu.com/ubuntu/pool/main/libc/libcap2/libca
     && dpkg -i libcap-dev_2.66-5ubuntu2.2_amd64.deb \
     && rm libcap-dev_2.66-5ubuntu2.2_amd64.deb
 
-RUN pip3 install --no-cache-dir --break-system-packages\
+RUN pip3 install --no-cache-dir --break-system-packages --ignore-installed\
     flake8-blind-except \
     flake8-builtins \
     flake8-comprehensions \
