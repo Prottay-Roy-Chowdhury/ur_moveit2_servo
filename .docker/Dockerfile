@@ -1,4 +1,4 @@
-ARG ROS_DISTRO=jazzy
+ARG ROS_DISTRO=humble
 FROM ros:${ROS_DISTRO}-ros-base AS base
 
 ARG ROS_DISTRO
@@ -34,13 +34,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends\
     libqt5opengl5-dev \
     libarchive-tools \
     libpcl-dev \
+    libcap-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN curl -ssL -O https://security.ubuntu.com/ubuntu/pool/main/libc/libcap2/libcap-dev_2.66-5ubuntu2.2_amd64.deb \
-    && dpkg -i libcap-dev_2.66-5ubuntu2.2_amd64.deb \
-    && rm libcap-dev_2.66-5ubuntu2.2_amd64.deb
+# RUN curl -ssL -O https://security.ubuntu.com/ubuntu/pool/main/libc/libcap2/libcap-dev_2.66-5ubuntu2.2_amd64.deb \
+#     && dpkg -i libcap-dev_2.66-5ubuntu2.2_amd64.deb \
+#     && rm libcap-dev_2.66-5ubuntu2.2_amd64.deb
 
-RUN pip3 install --no-cache-dir --break-system-packages\
+RUN pip3 install --no-cache-dir --ignore-installed\
     flake8-blind-except \
     flake8-builtins \
     flake8-comprehensions \
@@ -85,14 +86,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-$ROS_DISTRO-rmw-zenoh-cpp \
     ros-$ROS_DISTRO-ros-testing \
     ros-$ROS_DISTRO-ros2bag \
-    ros-$ROS_DISTRO-moveit \
-    ros-$ROS_DISTRO-moveit-servo \
-    ros-$ROS_DISTRO-moveit-py \
-    ros-$ROS_DISTRO-pilz-industrial-motion-planner \
-    ros-$ROS_DISTRO-chomp-motion-planner \
-    ros-$ROS_DISTRO-trac-ik-kinematics-plugin \
+    # ros-$ROS_DISTRO-moveit \
+    # ros-$ROS_DISTRO-moveit-servo \
+    # ros-$ROS_DISTRO-moveit-py \
+    # ros-$ROS_DISTRO-pilz-industrial-motion-planner \
+    # ros-$ROS_DISTRO-chomp-motion-planner \
+    # ros-$ROS_DISTRO-trac-ik-kinematics-plugin \
     ros-$ROS_DISTRO-ament-clang-format \
-    ros-$ROS_DISTRO-moveit-visual-tools \
+    # ros-$ROS_DISTRO-moveit-visual-tools \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # niceness permissions (for ur driver use without Prempt-RT)
@@ -108,7 +109,7 @@ RUN curl -ssL -o Mech-Eye_API_2.5.0_amd64.zip "https://cdn-obj.azureedge.net/com
     && rm -rf 'Mech-Eye_API_2.5.0_amd64.deb'
 
 
-RUN pip3 install --no-cache-dir --break-system-packages open3d --ignore-installed PyYAML
+RUN pip3 install --no-cache-dir open3d --ignore-installed PyYAML
 
 
 FROM camera AS build
@@ -122,7 +123,7 @@ COPY . /dev_ws/src
 
 FROM build AS bash
 
-RUN sed -i 's/\(\s*\)_Bool,/\1BoolType,/' /opt/mech-mind/mech-eye-sdk/include/Parameter.h
+# RUN sed -i 's/\(\s*\)_Bool,/\1BoolType,/' /opt/mech-mind/mech-eye-sdk/include/Parameter.h
 
 
 RUN ["/bin/bash", "-c", "source /opt/ros/$ROS_DISTRO/setup.bash && \
