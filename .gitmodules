@@ -9,7 +9,3 @@
 [submodule "easy_handeye2"]
 	path = easy_handeye2
 	url = https://github.com/marcoesposito1988/easy_handeye2
-[submodule "src/Universal_Robots_ROS2_Driver"]
-	path = src/Universal_Robots_ROS2_Driver
-	url = https://github.com/UniversalRobots/Universal_Robots_ROS2_Driver.git
-	branch = humble
