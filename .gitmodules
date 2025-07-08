@@ -6,3 +6,6 @@
 	path = mecheye_ros2_interface
 	url = git@github.com:HuanyuL/mecheye_ros2_interface.git
 	branch = main
+[submodule "easy_handeye2"]
+	path = easy_handeye2
+	url = https://github.com/marcoesposito1988/easy_handeye2
