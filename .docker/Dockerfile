@@ -60,8 +60,18 @@ RUN pip3 install --no-cache-dir --ignore-installed\
     matplotlib \
     rosbags     
 
+RUN apt-get update && apt-get install -y \
+    ros-${ROS_DISTRO}-vision-opencv \
+    python3-opencv \
+    libopencv-dev
+
+
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-$ROS_DISTRO-rqt \
+    ros-$ROS_DISTRO-cv-bridge \
+    ros-$ROS_DISTRO-image-transport \
+    ros-$ROS_DISTRO-vision-opencv \
     ros-$ROS_DISTRO-rqt-common-plugins \
     ros-$ROS_DISTRO-rqt-robot-dashboard \
     ros-$ROS_DISTRO-rqt-robot-steering \
@@ -86,6 +96,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-$ROS_DISTRO-rmw-zenoh-cpp \
     ros-$ROS_DISTRO-ros-testing \
     ros-$ROS_DISTRO-ros2bag \
+    ros-$ROS_DISTRO-controller-interface \
+    ros-$ROS_DISTRO-controller-manager \
+    ros-$ROS_DISTRO-ros2-control-test-assets \
     # ros-$ROS_DISTRO-moveit \
     # ros-$ROS_DISTRO-moveit-servo \
     # ros-$ROS_DISTRO-moveit-py \
@@ -95,6 +108,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-$ROS_DISTRO-ament-clang-format \
     # ros-$ROS_DISTRO-moveit-visual-tools \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-$ROS_DISTRO-controller-interface \
+    ros-$ROS_DISTRO-controller-manager \
+    ros-$ROS_DISTRO-ros2-control-test-assets \
+        # ... other packages ...
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 
 # niceness permissions (for ur driver use without Prempt-RT)
 RUN echo "* - nice -15" >> /etc/security/limits.conf
@@ -123,7 +144,21 @@ COPY . /dev_ws/src
 
 FROM build AS bash
 
-# RUN sed -i 's/\(\s*\)_Bool,/\1BoolType,/' /opt/mech-mind/mech-eye-sdk/include/Parameter.h
+RUN rosdep update && \
+    rosdep install --from-paths /dev_ws/src --ignore-src -r -y || true
+
+
+RUN apt-get update && \
+    apt-get install -y \
+    ros-${ROS_DISTRO}-vision-opencv \
+    ros-${ROS_DISTRO}-cv-bridge \
+    libopencv-dev \
+    python3-opencv
+
+
+# confirm header is there
+RUN find /opt/ros/$ROS_DISTRO -name cv_bridge.hpp || (echo "cv_bridge not found" && exit 1)
+RUN apt-get update && apt-get install -y ros-humble-cv-bridge
 
 
 RUN ["/bin/bash", "-c", "source /opt/ros/$ROS_DISTRO/setup.bash && \
