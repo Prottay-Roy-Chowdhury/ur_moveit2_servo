@@ -27,8 +27,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 
 # Install Python package
 # ament_python_install_package(${PROJECT_NAME} PACKAGE_DIR src/ur_commander)
-  DEPENDENCIES builtin_interfaces geometry_msgs
-)
+find_package(builtin_interfaces REQUIRED)
+find_package(geometry_msgs REQUIRED)
+
 
 # Install Python package
 # ament_python_install_package(${PROJECT_NAME} PACKAGE_DIR src/ur_commander)
@@ -38,13 +39,12 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 #   FILES_MATCHING PATTERN "*.py"
 # )
 
-# Install launch files.
+# Install launch and config files
 install(DIRECTORY
-  launch config 
-# install(DIRECTORY src/ur_commander
-#   DESTINATION lib/${PROJECT_NAME}
-#   FILES_MATCHING PATTERN "*.py"
-# )
+  launch config
+  DESTINATION share/${PROJECT_NAME}/
+)
+
 
 # Install launch files.
 install(DIRECTORY
