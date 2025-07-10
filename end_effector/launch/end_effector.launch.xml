@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+
+    <!-- Declare robot description -->
+    <arg name="robot_description" default="$(command 'xacro $(find-pkg-share end_effector)/urdf/end_effector.urdf.xacro')"/>
+
+
+    <!-- Robot State Publisher -->
+    <node name="robot_state_publisher" pkg="robot_state_publisher" exec="robot_state_publisher">
+        <param name="robot_description" value="$(var robot_description)" />
+    </node>
+
+    <!-- Joint State Publisher -->
+    <node name="joint_state_publisher" pkg="joint_state_publisher" exec="joint_state_publisher" output="screen" />
+
+    <node pkg="rviz2" exec="rviz2" output="screen" args="-d $(find-pkg-share end_effector)/rviz/end_effector_config.rviz"/>
+
+</launch>

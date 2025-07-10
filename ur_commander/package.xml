@@ -4,8 +4,8 @@
   <name>ur_commander</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
-  <maintainer email="huanyu.li@iaac.net">huanyu</maintainer>
-  <license>TODO: License declaration</license>
+  <maintainer email="91276231+HuanyuL@users.noreply.github.com">huanyu</maintainer>
+  <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <build_depend>rosidl_default_generators</build_depend> 
@@ -25,6 +25,17 @@
   <exec_depend>std_srvs</exec_depend>
   <exec_depend>trajectory_msgs</exec_depend>
   <exec_depend>rosidl_default_runtime</exec_depend>
+  <exec_depend>pymoveit2</exec_depend>
+  <exec_depend>ur_msgs</exec_depend>
+  <exec_depend>jason</exec_depend>
+  <exec_depend>time</exec_depend>
+  <exec_depend>threading</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>tf_transformations</exec_depend>
+  <exec_depend>scipy</exec_depend>
+  <exec_depend>numpy</exec_depend>
+
+
   <member_of_group>rosidl_interface_packages</member_of_group>
 
   <export>
