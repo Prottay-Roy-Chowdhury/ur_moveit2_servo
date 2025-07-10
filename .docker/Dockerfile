@@ -84,10 +84,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-$ROS_DISTRO-ros2bag \
     ros-$ROS_DISTRO-moveit \
     ros-$ROS_DISTRO-moveit-servo \
-    # ros-$ROS_DISTRO-moveit-py \
     ros-$ROS_DISTRO-pilz-industrial-motion-planner \
-    # ros-$ROS_DISTRO-chomp-motion-planner \
-    # ros-$ROS_DISTRO-trac-ik-kinematics-plugin \
     ros-$ROS_DISTRO-ament-clang-format \
     ros-$ROS_DISTRO-moveit-visual-tools \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
