@@ -1,0 +1,14 @@
+[submodule "Universal_Robots_ROS2_Driver"]
+	path = Universal_Robots_ROS2_Driver
+	url = git@github.com:HuanyuL/Universal_Robots_ROS2_Driver.git
+	branch = humble
+[submodule "mecheye_ros2_interface"]
+	path = mecheye_ros2_interface
+	url = https://github.com/MechMindRobotics/mecheye_ros2_interface.git
+[submodule "easy_handeye2"]
+	path = easy_handeye2
+	url = https://github.com/marcoesposito1988/easy_handeye2.git
+[submodule "aruco_ros"]
+	path = aruco_ros
+	url = https://github.com/pal-robotics/aruco_ros.git
+	branch = humble-devel
