@@ -31,7 +31,7 @@ Change your IP address to:
 
 ### Start the Camera Node
 ```bash
-ros2 launch dev_ws/src/mecheye_ros2_interface/launch/start_camera.py
+ros2 launch /dev_ws/src/mecheye_ros2_interface/launch/start_camera.py
 ```
 In a new terminal and select the default camera(Default: 0):
 
