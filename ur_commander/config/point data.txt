@@ -1,0 +1,1017 @@
+at which the feature detection of the 2D image is successful.
+******************************************************************************
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+Save the image to file Original2DImage_1.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+t
+Save the image to file DepthMap_1.tiff
+Save the image to file FeatureRecognitionResultForTest_1.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+a
+
+Enter the X translational component of the robot pose (in mm): 
+-525.00
+
+Enter the Y translational component of the robot pose (in mm): 
+-490.38^CTraceback (most recent call last):
+  File "/dev_ws/src/ur_commander/scripts/handeye_calibration.py", line 320, in <module>
+    a.main()
+  File "/dev_ws/src/ur_commander/scripts/handeye_calibration.py", line 313, in main
+    self.calibrate()
+  File "/dev_ws/src/ur_commander/scripts/handeye_calibration.py", line 280, in calibrate
+    robot_pose = self.input_robot_pose()
+  File "/dev_ws/src/ur_commander/scripts/handeye_calibration.py", line 192, in input_robot_pose
+    self.pose_y = get_input_float()
+  File "/dev_ws/src/ur_commander/scripts/handeye_calibration.py", line 24, in get_input_float
+    user_input = input()
+KeyboardInterrupt
+
+huanyu@RL:/dev_ws/src/ur_commander/images$ ^C
+huanyu@RL:/dev_ws/src/ur_commander/images$ /usr/bin/python3 /dev_ws/src/ur_commander/scripts/handeye_calibration.py
+Looking for available cameras...
+Logger: Error: No write permission for directory /var/log/ .
+Mech-Eye device index : 0
+.............................
+Model:                        Mech-Eye PRO S
+Device name:                  IAAC-HAWKEYES
+Serial number:                KEC10246B413E006
+IP address:                   192.168.56.100
+Subnet mask:                  255.255.255.0
+IP address assignment method: Static
+Hardware version:             V4.1.0
+Firmware version:             V2.4.1
+.............................
+
+Enter the index of the device to which you want to connect: 
+0
+Failed to obtain the IP address of the computer Ethernet port connected to the device. Please try disabling the Ethernet interface cards not connected to the device.
+ping: option requires an argument -- 'I'
+
+Usage
+  ping [options] <destination>
+
+Options:
+  <destination>      dns name or ip address
+  -a                 use audible ping
+  -A                 use adaptive ping
+  -B                 sticky source address
+  -c <count>         stop after <count> replies
+  -D                 print timestamps
+  -d                 use SO_DEBUG socket option
+  -f                 flood ping
+  -h                 print help and exit
+  -I <interface>     either interface name or address
+  -i <interval>      seconds between sending each packet
+  -L                 suppress loopback of multicast packets
+  -l <preload>       send <preload> number of packages while waiting replies
+  -m <mark>          tag the packets going out
+  -M <pmtud opt>     define mtu discovery, can be one of <do|dont|want>
+  -n                 no dns name resolution
+  -O                 report outstanding replies
+  -p <pattern>       contents of padding byte
+  -q                 quiet output
+  -Q <tclass>        use quality of service <tclass> bits
+  -s <size>          use <size> as number of data bytes to be sent
+  -S <size>          use <size> as SO_SNDBUF socket option value
+  -t <ttl>           define time to live
+  -U                 print user-to-user latency
+  -v                 verbose output
+  -V                 print version and exit
+  -w <deadline>      reply wait <deadline> in seconds
+  -W <timeout>       time to wait for response
+
+IPv4 options:
+  -4                 use IPv4
+  -b                 allow pinging broadcast
+  -R                 record route
+  -T <timestamp>     define timestamp, can be one of <tsonly|tsandaddr|tsprespec>
+
+IPv6 options:
+  -6                 use IPv6
+  -F <flowlabel>     define flow label, default is random
+  -N <nodeinfo opt>  use icmp6 node info query, try <help> as argument
+
+For more details see ping(8).
+Failed to obtain the IP address of the computer Ethernet port connected to the device. Please try disabling the Ethernet interface cards not connected to the device.
+Successfully connected to the camera.
+
+Enter the number that represents the camera mounting method.
+1: eye-in-hand
+2: eye-to-hand
+1
+
+Enter the number that represent the model of your calibration board (the model is labeled on the calibration board)
+1: BDB-5
+2:BDB-6
+3:BDB-7
+4: CGB-020
+5: CGB-035
+6: CGB-050
+7: OCB-005
+8: OCB-010
+9: OCB-015
+10: OCB-020
+5
+
+Enter the number that represents the Euler angle convention of your robot.
+1: Z-Y'-X'' (intrinsic rotations) : the intrinsic rotations are known as: yaw, pitch and roll
+2: Z-Y'-Z''/OAT (intrinsic rotations) 
+3: X-Y'-Z''(intrinsic rotations) 
+4: Z-X'-Z'' (intrinsic rotations) 
+5: X-Y-Z/WPR (extrinsic rotations) 
+1
+
+******************************************************************************
+Extrinsic parameter calculation requires at least 15 robot poses.
+During the hand-eye calibration, please make sure you enter enough robot poses
+at which the feature detection of the 2D image is successful.
+******************************************************************************
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+Save the image to file Original2DImage_1.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+t
+Save the image to file DepthMap_1.tiff
+Save the image to file FeatureRecognitionResultForTest_1.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+a
+
+Enter the X translational component of the robot pose (in mm): 
+-525.00
+
+Enter the Y translational component of the robot pose (in mm): 
+-490.38
+
+Enter the Z translational component of the robot pose (in mm): 
+413.33
+
+Enter the Z rotational component of the robot pose (in degrees): 
+173.48
+
+Enter the Y' rotational component of the robot pose (in degrees): 
+-1.64
+
+Enter the X'' rotational component of the robot pose (in degrees): 
+176.98
+
+The entered pose is:
+-525.0,-490.38,413.33,173.48,-1.64,176.98
+The converted pose (Euler angles --> quaternions) is: 
+-525.0,-490.38,413.33,-0.01278471686570734,0.057217980043319676,0.9979114084129799,0.027119637417353796
+The current pose index is 1
+If the above pose is correct, enter y; otherwise, press any key to enter the pose again.
+y
+Save the image to file FeatureRecognitionResult_1.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+Save the image to file Original2DImage_2.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+t
+Save the image to file DepthMap_2.tiff
+Save the image to file FeatureRecognitionResultForTest_2.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+a
+
+Enter the X translational component of the robot pose (in mm): 
+-524.98
+
+Enter the Y translational component of the robot pose (in mm): 
+-634.54
+
+Enter the Z translational component of the robot pose (in mm): 
+413.28
+
+Enter the Z rotational component of the robot pose (in degrees): 
+173.90
+
+Enter the Y' rotational component of the robot pose (in degrees): 
+-2.83
+
+Enter the X'' rotational component of the robot pose (in degrees): 
+166.18
+
+The entered pose is:
+-524.98,-634.54,413.28,173.9,-2.83,166.18
+The converted pose (Euler angles --> quaternions) is: 
+-524.98,-634.54,413.28,-0.01808036921281243,0.05577153531038916,0.9908697585716529,0.12140740358975116
+The current pose index is 2
+If the above pose is correct, enter y; otherwise, press any key to enter the pose again.
+y
+Save the image to file FeatureRecognitionResult_2.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+Save the image to file Original2DImage_3.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+t
+Save the image to file DepthMap_3.tiff
+Save the image to file FeatureRecognitionResultForTest_3.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+a
+
+Enter the X translational component of the robot pose (in mm): 
+-444.76
+
+Enter the Y translational component of the robot pose (in mm): 
+-634.56
+
+Enter the Z translational component of the robot pose (in mm): 
+413.26
+
+Enter the Z rotational component of the robot pose (in degrees): 
+-159.78
+
+Enter the Y' rotational component of the robot pose (in degrees): 
+-1.81
+
+Enter the X'' rotational component of the robot pose (in degrees): 
+160.99
+
+The entered pose is:
+-444.76,-634.56,413.26,-159.78,-1.81,160.99
+The converted pose (Euler angles --> quaternions) is: 
+-444.76,-634.56,413.26,0.04431956016983705,0.1705393036640276,-0.9712936488875775,-0.1598147994486004
+The current pose index is 3
+If the above pose is correct, enter y; otherwise, press any key to enter the pose again.
+y
+Save the image to file FeatureRecognitionResult_3.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+Save the image to file Original2DImage_4.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+t
+Save the image to file DepthMap_4.tiff
+Save the image to file FeatureRecognitionResultForTest_4.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+a
+
+Enter the X translational component of the robot pose (in mm): 
+-430.83
+
+Enter the Y translational component of the robot pose (in mm): 
+-511.26
+
+Enter the Z translational component of the robot pose (in mm): 
+496.19
+
+Enter the Z rotational component of the robot pose (in degrees): 
+173.68
+
+Enter the Y' rotational component of the robot pose (in degrees): 
+-4.18
+
+Enter the X'' rotational component of the robot pose (in degrees): 
+177.13
+
+The entered pose is:
+-430.83,-511.26,496.19,173.68,-4.18,177.13
+The converted pose (Euler angles --> quaternions) is: 
+-430.83,-511.26,496.19,-0.03502286509491199,0.05598240795649085,0.9974519959706016,0.026997863882159575
+The current pose index is 4
+If the above pose is correct, enter y; otherwise, press any key to enter the pose again.
+y
+Save the image to file FeatureRecognitionResult_4.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+Save the image to file Original2DImage_5.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+t
+Save the image to file DepthMap_5.tiff
+Save the image to file FeatureRecognitionResultForTest_5.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+a
+
+Enter the X translational component of the robot pose (in mm): 
+-600.24
+
+Enter the Y translational component of the robot pose (in mm): 
+-315.63
+
+Enter the Z translational component of the robot pose (in mm): 
+496.22
+
+Enter the Z rotational component of the robot pose (in degrees): 
+-173.84
+
+Enter the Y' rotational component of the robot pose (in degrees): 
+-4.20
+
+Enter the X'' rotational component of the robot pose (in degrees): 
+-175.02
+
+The entered pose is:
+-600.24,-315.63,496.22,-173.84,-4.2,-175.02
+The converted pose (Euler angles --> quaternions) is: 
+-600.24,-315.63,496.22,-0.034223483831539274,-0.055233159085918006,0.9968571291008044,-0.04532014400599449
+The current pose index is 5
+If the above pose is correct, enter y; otherwise, press any key to enter the pose again.
+y
+Save the image to file FeatureRecognitionResult_5.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+Save the image to file Original2DImage_6.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+t
+Save the image to file DepthMap_6.tiff
+Save the image to file FeatureRecognitionResultForTest_6.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+Save the image to file Original2DImage_6.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+t
+Save the image to file DepthMap_6.tiff
+Save the image to file FeatureRecognitionResultForTest_6.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+a
+
+Enter the X translational component of the robot pose (in mm): 
+-532.98
+
+Enter the Y translational component of the robot pose (in mm): 
+-238.56
+
+Enter the Z translational component of the robot pose (in mm): 
+411.44
+
+Enter the Z rotational component of the robot pose (in degrees): 
+-172.50
+
+Enter the Y' rotational component of the robot pose (in degrees): 
+-8.36
+
+Enter the X'' rotational component of the robot pose (in degrees): 
+171.40
+
+The entered pose is:
+-532.98,-238.56,411.44,-172.5,-8.36,171.4
+The converted pose (Euler angles --> quaternions) is: 
+-532.98,-238.56,411.44,0.07742006356857696,0.05959204153374365,-0.9927606733537012,-0.06986535468444703
+The current pose index is 6
+If the above pose is correct, enter y; otherwise, press any key to enter the pose again.
+y
+Save the image to file FeatureRecognitionResult_6.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+Save the image to file Original2DImage_7.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+t
+Save the image to file DepthMap_7.tiff
+Save the image to file FeatureRecognitionResultForTest_7.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+a
+
+Enter the X translational component of the robot pose (in mm): 
+-651.29
+
+Enter the Y translational component of the robot pose (in mm): 
+-238.57
+
+Enter the Z translational component of the robot pose (in mm): 
+411.45
+
+Enter the Z rotational component of the robot pose (in degrees): 
+-172.62
+
+Enter the Y' rotational component of the robot pose (in degrees): 
+-0.94
+
+Enter the X'' rotational component of the robot pose (in degrees): 
+-166.91
+
+The entered pose is:
+-651.29,-238.57,411.45,-172.62,-0.94,-166.91
+The converted pose (Euler angles --> quaternions) is: 
+-651.29,-238.57,411.45,-0.0007970780301484329,-0.06486960518108338,0.9913294858833278,-0.11426788441448132
+The current pose index is 7
+If the above pose is correct, enter y; otherwise, press any key to enter the pose again.
+y
+Save the image to file FeatureRecognitionResult_7.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+Save the image to file Original2DImage_8.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+t
+Save the image to file DepthMap_8.tiff
+Save the image to file FeatureRecognitionResultForTest_8.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+a
+
+Enter the X translational component of the robot pose (in mm): 
+-651.30
+
+Enter the Y translational component of the robot pose (in mm): 
+-566.37
+
+Enter the Z translational component of the robot pose (in mm): 
+411.44
+
+Enter the Z rotational component of the robot pose (in degrees): 
+-172.84
+
+Enter the Y' rotational component of the robot pose (in degrees): 
+2.02
+
+Enter the X'' rotational component of the robot pose (in degrees): 
+170.25
+
+The entered pose is:
+-651.3,-566.37,411.44,-172.84,2.02,170.25
+The converted pose (Euler angles --> quaternions) is: 
+-651.3,-566.37,411.44,-0.01222322922095159,0.06370163638957499,-0.9941900778292936,-0.08589984478731978
+The current pose index is 8
+If the above pose is correct, enter y; otherwise, press any key to enter the pose again.
+y
+Save the image to file FeatureRecognitionResult_8.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+Save the image to file Original2DImage_9.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+t
+Save the image to file DepthMap_9.tiff
+Save the image to file FeatureRecognitionResultForTest_9.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+a
+
+Enter the X translational component of the robot pose (in mm): 
+-651.29
+
+Enter the Y translational component of the robot pose (in mm): 
+-632.89
+
+Enter the Z translational component of the robot pose (in mm): 
+341.29
+
+Enter the Z rotational component of the robot pose (in degrees): 
+164.28
+
+Enter the Y' rotational component of the robot pose (in degrees): 
+7.00
+
+Enter the X'' rotational component of the robot pose (in degrees): 
+164.56
+
+The entered pose is:
+-651.29,-632.89,341.29,164.28,7.0,164.56
+The converted pose (Euler angles --> quaternions) is: 
+-651.29,-632.89,341.29,0.0782629298160015,0.12713703436856932,0.9809172462144797,0.1245489638157723
+The current pose index is 9
+If the above pose is correct, enter y; otherwise, press any key to enter the pose again.
+y
+Save the image to file FeatureRecognitionResult_9.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+Save the image to file Original2DImage_10.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+t
+Save the image to file DepthMap_10.tiff
+Save the image to file FeatureRecognitionResultForTest_10.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+a
+
+Enter the X translational component of the robot pose (in mm): 
+-590.54
+
+Enter the Y translational component of the robot pose (in mm): 
+-632.88
+
+Enter the Z translational component of the robot pose (in mm): 
+389.14
+
+Enter the Z rotational component of the robot pose (in degrees): 
+-150.19
+
+Enter the Y' rotational component of the robot pose (in degrees): 
+7.00
+
+Enter the X'' rotational component of the robot pose (in degrees): 
+164.56
+
+The entered pose is:
+-590.54,-632.88,389.14,-150.19,7.0,164.56
+The converted pose (Euler angles --> quaternions) is: 
+-590.54,-632.88,389.14,-0.02397170607659261,0.2623352418659152,-0.9536994758854516,-0.14513058905256462
+The current pose index is 10
+If the above pose is correct, enter y; otherwise, press any key to enter the pose again.
+y
+Save the image to file FeatureRecognitionResult_10.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+Save the image to file Original2DImage_11.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+t
+Save the image to file DepthMap_11.tiff
+Save the image to file FeatureRecognitionResultForTest_11.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+Save the image to file Original2DImage_11.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+t
+Save the image to file DepthMap_11.tiff
+Save the image to file FeatureRecognitionResultForTest_11.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+a
+
+Enter the X translational component of the robot pose (in mm): 
+-551.44
+
+Enter the Y translational component of the robot pose (in mm): 
+-626.35
+
+Enter the Z translational component of the robot pose (in mm): 
+440.08
+
+Enter the Z rotational component of the robot pose (in degrees): 
+-157.75
+
+Enter the Y' rotational component of the robot pose (in degrees): 
+3.46
+
+Enter the X'' rotational component of the robot pose (in degrees): 
+163.11
+
+The entered pose is:
+-551.44,-626.35,440.08,-157.75,3.46,163.11
+The converted pose (Euler angles --> quaternions) is: 
+-551.44,-626.35,440.08,-0.0009773867003586845,0.19512135158641533,-0.9692717438402997,-0.14979649349404986
+The current pose index is 11
+If the above pose is correct, enter y; otherwise, press any key to enter the pose again.
+y
+Save the image to file FeatureRecognitionResult_11.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+Save the image to file Original2DImage_12.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+t
+Save the image to file DepthMap_12.tiff
+Save the image to file FeatureRecognitionResultForTest_12.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+Save the image to file Original2DImage_12.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+t
+Save the image to file DepthMap_12.tiff
+Save the image to file FeatureRecognitionResultForTest_12.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+Save the image to file Original2DImage_12.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+t
+Save the image to file DepthMap_12.tiff
+Save the image to file FeatureRecognitionResultForTest_12.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+tSave the image to file Original2DImage_12.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+
+Save the image to file DepthMap_12.tiff
+Save the image to file FeatureRecognitionResultForTest_12.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+a
+
+Enter the X translational component of the robot pose (in mm): 
+-593.65
+
+Enter the Y translational component of the robot pose (in mm): 
+-529.45
+
+Enter the Z translational component of the robot pose (in mm): 
+422.53
+
+Enter the Z rotational component of the robot pose (in degrees): 
+-162.47
+
+Enter the Y' rotational component of the robot pose (in degrees): 
+-0.20
+
+Enter the X'' rotational component of the robot pose (in degrees): 
+170.59
+
+The entered pose is:
+-593.65,-529.45,422.53,-162.47,-0.2,170.59
+The converted pose (Euler angles --> quaternions) is: 
+-593.65,-529.45,422.53,0.014218331948407896,0.15172692023778153,-0.9850115516611114,-0.08080237500180482
+The current pose index is 12
+If the above pose is correct, enter y; otherwise, press any key to enter the pose again.
+y
+Save the image to file FeatureRecognitionResult_12.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+tSave the image to file Original2DImage_13.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+
+Save the image to file DepthMap_13.tiff
+Save the image to file FeatureRecognitionResultForTest_13.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+a
+
+Enter the X translational component of the robot pose (in mm): 
+-656.05
+
+Enter the Y translational component of the robot pose (in mm): 
+-546.19
+
+Enter the Z translational component of the robot pose (in mm): 
+492.91
+
+Enter the Z rotational component of the robot pose (in degrees): 
+142.46
+
+Enter the Y' rotational component of the robot pose (in degrees): 
+-0.19
+
+Enter the X'' rotational component of the robot pose (in degrees): 
+170.59
+
+The entered pose is:
+-656.05,-546.19,492.91,142.46,-0.19,170.59
+The converted pose (Euler angles --> quaternions) is: 
+-656.05,-546.19,492.91,0.024828709141152375,0.32081402623194405,0.9435822533347981,0.07819480140558305
+The current pose index is 13
+If the above pose is correct, enter y; otherwise, press any key to enter the pose again.
+y
+Save the image to file FeatureRecognitionResult_13.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+tSave the image to file Original2DImage_14.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+
+Save the image to file DepthMap_14.tiff
+Save the image to file FeatureRecognitionResultForTest_14.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+a
+
+Enter the X translational component of the robot pose (in mm): 
+-362.61
+
+Enter the Y translational component of the robot pose (in mm): 
+-546.17
+
+Enter the Z translational component of the robot pose (in mm): 
+492.89
+
+Enter the Z rotational component of the robot pose (in degrees): 
+141.59
+
+Enter the Y' rotational component of the robot pose (in degrees): 
+-11.30
+
+Enter the X'' rotational component of the robot pose (in degrees): 
+179.26
+
+The entered pose is:
+-362.61,-546.17,492.89,141.59,-11.3,179.26
+The converted pose (Euler angles --> quaternions) is: 
+-362.61,-546.17,492.89,-0.09085645004866397,0.32794453782049765,0.9395311683178021,0.038453470033801965
+The current pose index is 14
+If the above pose is correct, enter y; otherwise, press any key to enter the pose again.
+y
+Save the image to file FeatureRecognitionResult_14.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+Save the image to file Original2DImage_15.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+t
+Save the image to file DepthMap_15.tiff
+Save the image to file FeatureRecognitionResultForTest_15.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+p
+Save the image to file Original2DImage_15.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+t
+Save the image to file DepthMap_15.tiff
+Save the image to file FeatureRecognitionResultForTest_15.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters
+a
+
+Enter the X translational component of the robot pose (in mm): 
+-312.24
+
+Enter the Y translational component of the robot pose (in mm): 
+-489.29
+
+Enter the Z translational component of the robot pose (in mm): 
+428.89
+
+Enter the Z rotational component of the robot pose (in degrees): 
+152.65
+
+Enter the Y' rotational component of the robot pose (in degrees): 
+-15.27
+
+Enter the X'' rotational component of the robot pose (in degrees): 
+-177.45
+
+The entered pose is:
+-312.24,-489.29,428.89,152.65,-15.27,-177.45
+The converted pose (Euler angles --> quaternions) is: 
+-312.24,-489.29,428.89,0.134277425423333,-0.23138775692799957,-0.963498727870614,-0.009973984019377418
+The current pose index is 15
+If the above pose is correct, enter y; otherwise, press any key to enter the pose again.
+y
+Save the image to file FeatureRecognitionResult_15.png
+
+Enter the letter that represents the action you want to perform.
+P: obtain the original 2D image
+T: obtain the 2D image with feature recognition result
+A: enter the current robot pose
+C: calculate extrinsic parameters

@@ -59,6 +59,7 @@ install(PROGRAMS
 
 install(PROGRAMS
   scripts/aruco_detection.py
+  scripts/camera_info_publisher.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
