@@ -129,10 +129,28 @@ def generate_launch_description():
     #     }.items(),
     # )
 
+    # add static transfrorm publisher for camera to base link with quaternion
+    static_transform_publisher = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name="camera_to_base_link_publisher",
+        output="screen",
+        arguments=[
+            "0.096884",
+            "0.027744",
+            "-0.277749",  # x, y, z translation
+            "0.836144",
+            "-0.144927",
+            "0.027037",
+            "0.528326",  # x, y, z, w quaternion
+            "tool0",  # parent frame
+            "camera_color_optical_frame",  # child frame
+        ],
+    )
     # Return the full launch description
     return LaunchDescription(
         declared_arguments
-        + [ur_bringup_launch, moveit_launch, visualize_pose_srv_node, calibrate_launch]
+        + [ur_bringup_launch, moveit_launch, visualize_pose_srv_node, static_transform_publisher]
     )
 
 

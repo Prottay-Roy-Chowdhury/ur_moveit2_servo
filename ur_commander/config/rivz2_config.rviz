@@ -5,18 +5,11 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
-<<<<<<< HEAD
+        - /MotionPlanning1/Planning Request1
         - /TF1
         - /TF1/Frames1
-        - /PoseArray1/Topic1
       Splitter Ratio: 0.4957627058029175
-    Tree Height: 153
-=======
-        - /MotionPlanning1
-        - /PoseArray1/Topic1
-      Splitter Ratio: 0.4957627058029175
-    Tree Height: 835
->>>>>>> 19fafb8 (camera calibration)
+    Tree Height: 466
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -74,7 +67,7 @@ Visualization Manager:
           Z: 2
       Name: MotionPlanning
       Planned Path:
-        Color Enabled: false
+        Color Enabled: true
         Interrupt Display: true
         Links:
           All Links Enabled: true
@@ -91,11 +84,6 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
           base_link_inertia:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-            Value: true
-          end_effector_base_link:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -118,10 +106,6 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
             Value: true
-          tcp:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
           tool0:
             Alpha: 1
             Show Axes: false
@@ -152,12 +136,12 @@ Visualization Manager:
             Value: true
         Loop Animation: false
         Robot Alpha: 0.5
-        Robot Color: 255; 0; 255
+        Robot Color: 150; 50; 150
         Show Robot Collision: false
         Show Robot Visual: true
         Show Trail: false
         State Display Time: 0.05 s
-        Trail Step Size: 5
+        Trail Step Size: 1
         Trajectory Topic: /display_planned_path
         Use Sim Time: false
       Planning Metrics:
@@ -209,11 +193,6 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
             Value: true
-          end_effector_base_link:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
-            Value: true
           flange:
             Alpha: 1
             Show Axes: false
@@ -232,10 +211,6 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
             Value: true
-          tcp:
-            Alpha: 1
-            Show Axes: false
-            Show Trail: false
           tool0:
             Alpha: 1
             Show Axes: false
@@ -277,33 +252,11 @@ Visualization Manager:
         base:
           Value: false
         base_link:
-          Value: false
+          Value: true
         base_link_inertia:
-          Value: false
-        camera_accel_frame:
-          Value: false
-        camera_accel_optical_frame:
-          Value: false
-        camera_color_frame:
           Value: false
         camera_color_optical_frame:
           Value: true
-        camera_depth_frame:
-          Value: false
-        camera_depth_optical_frame:
-          Value: false
-        camera_gyro_frame:
-          Value: false
-        camera_gyro_optical_frame:
-          Value: false
-        camera_ir_frame:
-          Value: false
-        camera_ir_optical_frame:
-          Value: false
-        camera_link:
-          Value: false
-        end_effector_base_link:
-          Value: false
         flange:
           Value: false
         forearm_link:
@@ -312,9 +265,9 @@ Visualization Manager:
           Value: false
         shoulder_link:
           Value: false
-        tcp:
-          Value: true
         tool0:
+          Value: true
+        tool0_controller:
           Value: false
         upper_arm_link:
           Value: false
@@ -335,7 +288,8 @@ Visualization Manager:
         world:
           base_link:
             base:
-              {}
+              tool0_controller:
+                {}
             base_link_inertia:
               shoulder_link:
                 upper_arm_link:
@@ -345,55 +299,16 @@ Visualization Manager:
                         wrist_3_link:
                           flange:
                             tool0:
-                              end_effector_base_link:
-                                tcp:
-                                  {}
+                              camera_color_optical_frame:
+                                {}
                           ft_frame:
                             {}
-            camera_color_optical_frame:
-              {}
-            camera_link:
-              camera_depth_frame:
-                camera_accel_frame:
-                  camera_accel_optical_frame:
-                    {}
-                camera_color_frame:
-                  {}
-                camera_depth_optical_frame:
-                  {}
-                camera_gyro_frame:
-                  camera_gyro_optical_frame:
-                    {}
-                camera_ir_frame:
-                  camera_ir_optical_frame:
-                    {}
       Update Interval: 0
-      Value: true
-    - Alpha: 1
-      Arrow Length: 0.30000001192092896
-      Axes Length: 0.10000000149011612
-      Axes Radius: 0.009999999776482582
-      Class: rviz_default_plugins/PoseArray
-      Color: 255; 25; 0
-      Enabled: true
-      Head Length: 0.07000000029802322
-      Head Radius: 0.029999999329447746
-      Name: PoseArray
-      Shaft Length: 0.23000000417232513
-      Shaft Radius: 0.009999999776482582
-      Shape: Axes
-      Topic:
-        Depth: 10
-        Durability Policy: Volatile
-        Filter size: 10
-        History Policy: Keep Last
-        Reliability Policy: Best Effort
-        Value: /pose_visualizer
       Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
-    Fixed Frame: base_link
+    Fixed Frame: world
     Frame Rate: 30
   Name: root
   Tools:
@@ -436,75 +351,43 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-<<<<<<< HEAD
-      Distance: 1.386242151260376
-=======
-      Distance: 4.2524638175964355
->>>>>>> 19fafb8 (camera calibration)
+      Distance: 2.705379009246826
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-<<<<<<< HEAD
-        X: 0.5295791029930115
-        Y: 0.16963820159435272
-        Z: 0.4092354476451874
-=======
-        X: -1.0838948488235474
-        Y: -0.9647068977355957
-        Z: 0.2966284453868866
->>>>>>> 19fafb8 (camera calibration)
+        X: 0.2489434778690338
+        Y: -0.013962505385279655
+        Z: 0.13800443708896637
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-<<<<<<< HEAD
-      Pitch: 0.7003971338272095
+      Pitch: 0.5653981566429138
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 1.5703874826431274
-    Saved: ~
-Window Geometry:
-  Displays:
-    collapsed: false
-  Height: 752
-  Hide Left Dock: false
-=======
-      Pitch: 0.36539769172668457
-      Target Frame: <Fixed Frame>
-      Value: Orbit (rviz)
-      Yaw: 0.8353890776634216
+      Yaw: 1.8453946113586426
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: true
-  Height: 1136
+  Height: 1131
   Hide Left Dock: true
->>>>>>> 19fafb8 (camera calibration)
-  Hide Right Dock: true
+  Hide Right Dock: false
   MotionPlanning:
-    collapsed: false
+    collapsed: true
   MotionPlanning - Trajectory Slider:
     collapsed: false
-<<<<<<< HEAD
-  QMainWindow State: 000000ff00000000fd0000000400000000000001e00000029afc020000000afb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003b0000012b000000c700fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb000000280020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000000000000000fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e0067010000016c000001690000016900ffffff000000010000011000000378fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003b00000378000000a000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000007800000003ffc0100000003fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c0069006400650072000000000000000780000000fe00fffffffb0000000800540069006d00650100000000000004420000000000000000fb0000000800540069006d00650100000000000004500000000000000000000003ba0000029a00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
-=======
-  QMainWindow State: 000000ff00000000fd0000000400000000000001e0000003d5fc020000000afb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073000000003b000003d5000000c700fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb000000280020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000000000000000fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e0067000000024a000001690000016900ffffff000000010000011000000378fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003b00000378000000a000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000007800000003ffc0100000003fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c0069006400650072010000000000000780000000fe00fffffffb0000000800540069006d00650100000000000004420000000000000000fb0000000800540069006d0065010000000000000450000000000000000000000780000003d500000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
->>>>>>> 19fafb8 (camera calibration)
+  QMainWindow State: 000000ff00000000fd0000000400000000000001e000000415fc020000000bfb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073000000003b00000264000000c700fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb000000280020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000000000000000fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000001600000016fb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e006700000002a5000001ab0000016900ffffff000000010000011000000415fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073010000003b00000415000000a000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000004420000003efc0100000002fb0000000800540069006d00650100000000000004420000000000000000fb0000000800540069006d006501000000000000045000000000000000000000066a0000041500000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Tool Properties:
     collapsed: false
   Views:
-    collapsed: true
-<<<<<<< HEAD
-  Width: 1440
-  X: -510
-=======
+    collapsed: false
   Width: 1920
   X: 0
->>>>>>> 19fafb8 (camera calibration)
-  Y: 27
+  Y: 32
