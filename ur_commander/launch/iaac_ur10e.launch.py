@@ -27,34 +27,22 @@ def generate_launch_description():
                 "forward_position_controller",
             ],
         ),
-        DeclareLaunchArgument(
-            "pipeline",
-            default_value="ompl",
-            description="Specify the planning pipeline to use",
-            choices=["ompl", "pilz"],
-        ),
     ]
 
     # Define launch configurations for use in the IncludeLaunchDescription
     sim = LaunchConfiguration("sim")
     initial_joint_controller = LaunchConfiguration("initial_joint_controller")
-    pipeline = LaunchConfiguration("pipeline")
+    # pipeline = LaunchConfiguration("pipeline")
 
     # Define the path to the UR launch file
     ur_bringup_launch_file = os.path.join(
         FindPackageShare("ur_robot_driver").find("ur_robot_driver"), "launch", "ur10e.launch.py"
     )
 
-    moveit_ompl_launch_file = os.path.join(
+    moveit_launch_file = os.path.join(
         FindPackageShare("ur_moveit_config").find("ur_moveit_config"),
         "launch",
         "ur_moveit.launch.py",
-    )
-
-    moveit_pilz_launch_file = os.path.join(
-        FindPackageShare("ur_moveit_config").find("ur_moveit_config"),
-        "launch",
-        "ur_moveit_pilz.launch.py",
     )
 
     # Define the arguments for both simulation and real robot modes
@@ -96,21 +84,9 @@ def generate_launch_description():
         ]
     )
 
-    # Conditionally include the appropriate MoveIt launch file based on pipeline choice
+    # Launch moveit
     moveit_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            PythonExpression(
-                [
-                    "'",
-                    moveit_ompl_launch_file,
-                    "' if '",
-                    pipeline,
-                    "' == 'ompl' else '",
-                    moveit_pilz_launch_file,
-                    "'",
-                ]
-            )
-        ),
+        PythonLaunchDescriptionSource(moveit_launch_file),
         launch_arguments=moveit_arguments.items(),
     )
 
@@ -126,7 +102,9 @@ def generate_launch_description():
     calibrate_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(
-                FindPackageShare("easy_handeye2").find("easy_handeye2"), "launch", "calibrate.launch.py"
+                FindPackageShare("easy_handeye2").find("easy_handeye2"),
+                "launch",
+                "calibrate.launch.py",
             )
         ),
         launch_arguments={
@@ -153,7 +131,8 @@ def generate_launch_description():
 
     # Return the full launch description
     return LaunchDescription(
-        declared_arguments + [ur_bringup_launch, moveit_launch, visualize_pose_srv_node,calibrate_launch]
+        declared_arguments
+        + [ur_bringup_launch, moveit_launch, visualize_pose_srv_node, calibrate_launch]
     )
 
 
