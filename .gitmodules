@@ -8,7 +8,3 @@
 [submodule "easy_handeye2"]
 	path = easy_handeye2
 	url = https://github.com/marcoesposito1988/easy_handeye2.git
-[submodule "aruco_ros"]
-	path = aruco_ros
-	url = https://github.com/pal-robotics/aruco_ros.git
-	branch = humble-devel
