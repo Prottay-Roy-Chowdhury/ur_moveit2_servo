@@ -8,7 +8,7 @@ from sensor_msgs.msg import CameraInfo
 class CameraInfoPublisher(Node):
     def __init__(self):
         super().__init__("single_camera_info_publisher")
-        self.pub = self.create_publisher(CameraInfo, "/camera/camera_info", 10)
+        self.pub = self.create_publisher(CameraInfo, "/mechmind/camera_info", 10)
 
         # Replace with your actual image resolution
         self.width = 1920

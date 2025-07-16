@@ -1,4 +1,4 @@
-"""Launch file for IAAC UR10e robot with MoveIt and visualization nodes."""
+"""Launch file for IAAC UR10e Handeye calibration and MoveIt integration."""
 
 import os
 from launch import LaunchDescription
@@ -100,26 +100,47 @@ def generate_launch_description():
         output="screen",
     )
 
-    # add static transfrorm publisher for camera to base link with quaternion
-    static_transform_publisher = Node(
-        package="tf2_ros",
-        executable="static_transform_publisher",
-        name="camera_to_base_link_publisher",
-        output="screen",
-        arguments=[
-            "0.096507",  # x
-            "-0.087104",  # y
-            "0.017135",  # z
-            "0.035378",  # qx
-            "0.002747",  # qy
-            "-0.008516",  # qz
-            "0.999334",  # qw
-            "tool0",  # parent frame
-            "camera_color_optical_frame",  # child frame
-        ],
+    # Include easy_handeye2 calibration launch
+    calibrate_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                FindPackageShare("easy_handeye2").find("easy_handeye2"),
+                "launch",
+                "calibrate.launch.py",
+            )
+        ),
+        launch_arguments={
+            "calibration_type": "eye_in_hand",
+            "name": "deco2",
+            "robot_base_frame": "base_link",
+            "robot_effector_frame": "tool0",
+            "tracking_base_frame": "camera_color_optical_frame",
+            "tracking_marker_frame": "aruco_marker_frame",
+        }.items(),
     )
+
+    # Include easy_handeye2 calibration publish launch for eye-on-base
+    eih_publish_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                FindPackageShare("easy_handeye2").find("easy_handeye2"),
+                "launch",
+                "publish.launch.py",
+            )
+        ),
+        launch_arguments={
+            "name": "deco2",
+        }.items(),
+    )
+
     # Return the full launch description
     return LaunchDescription(
         declared_arguments
-        + [ur_bringup_launch, moveit_launch, visualize_pose_srv_node, static_transform_publisher]
+        + [
+            ur_bringup_launch,
+            moveit_launch,
+            visualize_pose_srv_node,
+            calibrate_launch,
+            eih_publish_launch,
+        ]
     )

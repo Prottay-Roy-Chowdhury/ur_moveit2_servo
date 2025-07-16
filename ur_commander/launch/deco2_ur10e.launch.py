@@ -1,19 +1,22 @@
+"""Launch file for IAAC UR10e Handeye calibration and MoveIt integration."""
+
+import os
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, GroupAction
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PythonExpression
+from launch.substitutions import LaunchConfiguration
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import Node
-import os
+
 
 def generate_launch_description():
-    
-
     # Declare the 'sim' argument to toggle between simulation and real robot mode
     declared_arguments = [
         DeclareLaunchArgument(
-            "sim", default_value="false", description="Launch in simulation mode if true, real robot mode if false"
+            "sim",
+            default_value="true",
+            description="Launch in simulation mode if true, real robot mode if false",
         ),
         DeclareLaunchArgument(
             "initial_joint_controller",
@@ -26,30 +29,22 @@ def generate_launch_description():
                 "forward_position_controller",
             ],
         ),
-        DeclareLaunchArgument(
-            "pipeline",
-            default_value="pilz",
-            description="Specify the planning pipeline to use",
-            choices=["ompl", "pilz"],
-        ),
     ]
 
     # Define launch configurations for use in the IncludeLaunchDescription
     sim = LaunchConfiguration("sim")
     initial_joint_controller = LaunchConfiguration("initial_joint_controller")
-    pipeline = LaunchConfiguration("pipeline")
+    # pipeline = LaunchConfiguration("pipeline")
 
     # Define the path to the UR launch file
     ur_bringup_launch_file = os.path.join(
         FindPackageShare("ur_robot_driver").find("ur_robot_driver"), "launch", "ur10e.launch.py"
     )
 
-    moveit_ompl_launch_file = os.path.join(
-        FindPackageShare("ur_moveit_config").find("ur_moveit_config"), "launch", "ur_moveit.launch.py"
-    )
-
-    moveit_pilz_launch_file = os.path.join(
-        FindPackageShare("ur_moveit_config").find("ur_moveit_config"), "launch", "ur_moveit_pilz.launch.py"
+    moveit_launch_file = os.path.join(
+        FindPackageShare("ur_moveit_config").find("ur_moveit_config"),
+        "launch",
+        "ur_moveit.launch.py",
     )
 
     # Define the arguments for both simulation and real robot modes
@@ -91,13 +86,9 @@ def generate_launch_description():
         ]
     )
 
-    # Conditionally include the appropriate MoveIt launch file based on pipeline choice
+    # Launch moveit
     moveit_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            PythonExpression(
-                ["'", moveit_ompl_launch_file, "' if '", pipeline, "' == 'ompl' else '", moveit_pilz_launch_file, "'"]
-            )
-        ),
+        PythonLaunchDescriptionSource(moveit_launch_file),
         launch_arguments=moveit_arguments.items(),
     )
 
@@ -108,39 +99,82 @@ def generate_launch_description():
         name="visualize_pose_srv_node",
         output="screen",
     )
-    
-# # Include easy_handeye2 calibration launch
-#     calibrate_launch = IncludeLaunchDescription(
-#         PythonLaunchDescriptionSource(
-#             os.path.join(
-#                 FindPackageShare("easy_handeye2").find("easy_handeye2"), "launch", "calibrate.launch.py"
-#             )
-#         ),
-#         launch_arguments={
-#             "calibration_type": "eye_on_base",
-#             "name": "pick_n_place_calibration",
-#             "robot_base_frame": "base_link",
-#             "robot_effector_frame": "tcp",
-#             "tracking_base_frame": "camera_color_optical_frame",
-#             "tracking_marker_frame": "aruco_marker",
-#         }.items(),
-#     )
 
-    # Include easy_handeye2 calibration publish launch for eye-on-base
-    eob_publish_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(
-                FindPackageShare("easy_handeye2").find("easy_handeye2"), "launch", "publish.launch.py"
-            )
-        ),
-        launch_arguments={
-            "name": "pick_n_place_calibration",
-        }.items(),
+    camera_node = Node(
+        package="mecheye_ros_interface",
+        executable="start",
+        name="mechmind_camera_publisher_service",
+        output="screen",
+        prefix="xterm -e",
+        parameters=[
+            {"save_file": True},
+            {"camera_ip": "172.20.112.1"},  # change to your camera ip
+            {"user_external_intri": False},
+            {"fx": 1727.4641025602748},
+            {"fy": 1727.4586926701952},
+            {"u": 655.8180825729554},
+            {"v": 516.6306500606158},
+        ],
     )
 
-    # Return the full launch description
-    return LaunchDescription(declared_arguments + [ur_bringup_launch, moveit_launch, visualize_pose_srv_node,eob_publish_launch])
-#  handeye_rqt_evaluator_launch, calibrate_launch,eob_publish_launch,ros
+    # add static transfrorm publisher for camera to base link with quaternion
+    camera_tf_publisher = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name="camera_to_base_link_publisher",
+        output="screen",
+        arguments=[
+            "0.096507",  # x
+            "-0.087104",  # y
+            "0.017135",  # z
+            "0.035378",  # qx
+            "0.002747",  # qy
+            "-0.008516",  # qz
+            "0.999334",  # qw
+            "tool0",  # parent frame
+            "camera_color_optical_frame",  # child frame
+        ],
+    )
 
+    # The camera nodes for mechmind camera
+    static_tf_point_cloud_node = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        arguments=[
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "/camera_color_optical_frame",
+            "/mechmind_camera/point_cloud",
+        ],
+    )
+    static_tf_textured_point_cloud_node = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        arguments=[
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "/camera_color_optical_frame",
+            "/mechmind_camera/textured_point_cloud",
+        ],
+    )
 
-# [handeye_server-13] [INFO] [1744806788.462713510] [handeye_server]: Calibration saved to /home/shu/.ros2/easy_handeye2/calibrations/pick_n_place_calibration.calib
+    return LaunchDescription(
+        declared_arguments
+        + [
+            ur_bringup_launch,
+            moveit_launch,
+            visualize_pose_srv_node,
+            camera_node,
+            camera_tf_publisher,
+            static_tf_point_cloud_node,
+            static_tf_textured_point_cloud_node,
+        ]
+    )

@@ -58,15 +58,11 @@ install(PROGRAMS
 )
 
 install(PROGRAMS
-  scripts/aruco_detection.py
   scripts/camera_info_publisher.py
+  scripts/image_publisher.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
-install(PROGRAMS
-  scripts/camera_static.py
-  DESTINATION lib/${PROJECT_NAME}
-)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

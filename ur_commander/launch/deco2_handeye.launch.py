@@ -1,4 +1,4 @@
-"""Launch file for IAAC UR10e robot with MoveIt and visualization nodes."""
+"""Launch file for IAAC UR10e Handeye calibration and MoveIt integration."""
 
 import os
 from launch import LaunchDescription
@@ -100,8 +100,58 @@ def generate_launch_description():
         output="screen",
     )
 
+    camera_node = Node(
+        package="mecheye_ros_interface",
+        executable="start",
+        name="mechmind_camera_publisher_service",
+        output="screen",
+        prefix="xterm -e",
+        parameters=[
+            {"save_file": True},
+            {"camera_ip": "172.20.112.1"},  # change to your camera ip
+            {"user_external_intri": False},
+            {"fx": 1727.4641025602748},
+            {"fy": 1727.4586926701952},
+            {"u": 655.8180825729554},
+            {"v": 516.6306500606158},
+        ],
+    )
+
+    # Include easy_handeye2 calibration launch
+    calibrate_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                FindPackageShare("easy_handeye2").find("easy_handeye2"),
+                "launch",
+                "calibrate.launch.py",
+            )
+        ),
+        launch_arguments={
+            "calibration_type": "eye_in_hand",
+            "name": "deco2",
+            "robot_base_frame": "base_link",
+            "robot_effector_frame": "tool0",
+            "tracking_base_frame": "camera_color_optical_frame",
+            "tracking_marker_frame": "aruco_marker_frame",
+        }.items(),
+    )
+
+    # Include easy_handeye2 calibration publish launch for eye-on-bases
+    eih_publish_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                FindPackageShare("easy_handeye2").find("easy_handeye2"),
+                "launch",
+                "publish.launch.py",
+            )
+        ),
+        launch_arguments={
+            "name": "deco2",
+        }.items(),
+    )
+
     # add static transfrorm publisher for camera to base link with quaternion
-    static_transform_publisher = Node(
+    camera_tf_publisher = Node(
         package="tf2_ros",
         executable="static_transform_publisher",
         name="camera_to_base_link_publisher",
@@ -118,8 +168,48 @@ def generate_launch_description():
             "camera_color_optical_frame",  # child frame
         ],
     )
-    # Return the full launch description
+
+    # The camera nodes for mechmind camera
+    static_tf_point_cloud_node = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        arguments=[
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "/camera_color_optical_frame",
+            "/mechmind_camera/point_cloud",
+        ],
+    )
+    static_tf_textured_point_cloud_node = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        arguments=[
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "0",
+            "/camera_color_optical_frame",
+            "/mechmind_camera/textured_point_cloud",
+        ],
+    )
+
     return LaunchDescription(
         declared_arguments
-        + [ur_bringup_launch, moveit_launch, visualize_pose_srv_node, static_transform_publisher]
+        + [
+            ur_bringup_launch,
+            moveit_launch,
+            visualize_pose_srv_node,
+            camera_node,
+            calibrate_launch,
+            eih_publish_launch,
+            camera_tf_publisher,
+            static_tf_point_cloud_node,
+            static_tf_textured_point_cloud_node,
+        ]
     )
