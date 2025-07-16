@@ -117,6 +117,35 @@ def generate_launch_description():
         ],
     )
 
+    # Custom the camera info publisher to match the camera frame
+    camera_info_publisher = Node(
+        package="ur_commander",
+        executable="camera_info_publisher.py",
+        name="camera_info_publisher",
+        output="screen"
+    )
+
+    # Launch aruco_ros single marker detection node
+    aruco_single_node = Node(
+        package="aruco_ros",
+        executable="single",
+        parameters=[
+            {
+                "image_is_rectified": True,
+                "marker_size": "0.15",  # Marker size in meters
+                "marker_id": "24",  # Marker ID
+                "reference_frame": "",
+                "camera_frame": "camera_color_optical_frame",
+                "marker_frame": "aruco_marker_frame",
+                "corner_refinement": "LINES"
+            },
+        ],
+        remappings=[
+            ("/camera_info", "/mechmind/camera_info"),
+            ("/image", "/mechmind/color_image"),
+        ],
+    )
+
     # Include easy_handeye2 calibration launch
     calibrate_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -206,6 +235,8 @@ def generate_launch_description():
             moveit_launch,
             visualize_pose_srv_node,
             camera_node,
+            camera_info_publisher,
+            aruco_single_node,
             calibrate_launch,
             eih_publish_launch,
             camera_tf_publisher,
