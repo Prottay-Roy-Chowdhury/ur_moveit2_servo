@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends\
     cmake \
     git \
     unzip \
+    xterm \
     python3-colcon-common-extensions \
     python3-colcon-mixin \
     python3-flake8 \
@@ -54,6 +55,7 @@ RUN pip3 install --no-cache-dir --ignore-installed\
     opencv-python \
     panda \
     matplotlib \
+    setuptools \
     rosbags     
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -116,11 +118,12 @@ COPY . /dev_ws/src
 
 FROM build AS bash
 
-RUN sed -i 's/\(\s*\)_Bool,/\1BoolType,/' /opt/mech-mind/mech-eye-sdk/include/Parameter.h
+# RUN sed -i 's/\(\s*\)_Bool,/\1BoolType,/' /opt/mech-mind/mech-eye-sdk/include/Parameter.h
 
+RUN pip3 install setuptools==79.0.1
 
 RUN ["/bin/bash", "-c", "source /opt/ros/$ROS_DISTRO/setup.bash && \
-     colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release"] 
+     colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release"] 
 
 
 RUN ["/bin/bash", "-c", "cp /dev_ws/src/.docker/setup.bash /dev_ws/setup.bash && chmod 777 /dev_ws/setup.bash"]
