@@ -19,7 +19,6 @@ find_package(geometry_msgs REQUIRED)
 
 
 # Service files
-# Service files
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/VisualizePoses.srv"
   DEPENDENCIES builtin_interfaces geometry_msgs

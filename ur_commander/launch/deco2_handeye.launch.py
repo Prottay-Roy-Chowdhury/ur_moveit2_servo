@@ -122,7 +122,7 @@ def generate_launch_description():
         package="ur_commander",
         executable="camera_info_publisher.py",
         name="camera_info_publisher",
-        output="screen"
+        output="screen",
     )
 
     # Launch aruco_ros single marker detection node
@@ -132,12 +132,12 @@ def generate_launch_description():
         parameters=[
             {
                 "image_is_rectified": True,
-                "marker_size": "0.15",  # Marker size in meters
-                "marker_id": "24",  # Marker ID
+                "marker_size": 0.15,  # Marker size in meters
+                "marker_id": 24,  # Marker ID
                 "reference_frame": "",
                 "camera_frame": "camera_color_optical_frame",
                 "marker_frame": "aruco_marker_frame",
-                "corner_refinement": "LINES"
+                "corner_refinement": "LINES",
             },
         ],
         remappings=[

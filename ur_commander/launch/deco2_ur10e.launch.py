@@ -124,13 +124,13 @@ def generate_launch_description():
         name="camera_to_base_link_publisher",
         output="screen",
         arguments=[
-            "0.096507",  # x
-            "-0.087104",  # y
-            "0.017135",  # z
-            "0.035378",  # qx
-            "0.002747",  # qy
-            "-0.008516",  # qz
-            "0.999334",  # qw
+            "0.074355",  # x
+            "-0.103473",  # y
+            "0.020089",  # z
+            "-0.002435",  # qx
+            "0.003356",  # qy
+            "-0.005016",  # qz
+            "0.999979",  # qw
             "tool0",  # parent frame
             "camera_color_optical_frame",  # child frame
         ],
