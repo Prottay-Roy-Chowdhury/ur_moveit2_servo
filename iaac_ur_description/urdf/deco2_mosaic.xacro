@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="ur_with_ee">
+
+  <!-- Load original robot -->
+  <xacro:arg name="name" default="ur" />
+  <xacro:arg name="ur_type" default="ur10e" />
+  <xacro:arg name="sim_gazebo" default="false" />
+  <xacro:arg name="sim_ignition" default="false" />
+
+  <!-- Include base robot definition -->
+  <xacro:include filename="$(find ur_description)/urdf/ur.urdf.xacro"/>
+
+  <!-- Add end-effector frame -->
+  <link name="suction_cup_frame">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.02 0.02 0.02"/> <!-- Placeholder visual -->
+      </geometry>
+      <material name="placeholder_grey">
+        <color rgba="0.6 0.6 0.6 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.02 0.02 0.02"/> <!-- Placeholder collision -->
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="vaccum_gripper" type="fixed">
+    <parent link="tool0"/>  <!-- replace with correct parent link if needed -->
+    <child link="suction_cup_frame"/>
+    <origin xyz="0 0 0.0" rpy="0 0 0"/> <!-- adjust this to position the EE correctly -->
+  </joint>
+
+</robot>
