@@ -29,11 +29,22 @@ def generate_launch_description():
                 "forward_position_controller",
             ],
         ),
+        DeclareLaunchArgument(
+            "description_package",
+            default_value="iaac_ur_description",
+            description="Package containing the URDF description of the robot.",
+        ),
+        DeclareLaunchArgument(
+            "description_file",
+            default_value="deco2_mosaic.xacro",
+            description="URDF description file of the robot.",
+        ),
     ]
-
     # Define launch configurations for use in the IncludeLaunchDescription
     sim = LaunchConfiguration("sim")
     initial_joint_controller = LaunchConfiguration("initial_joint_controller")
+    ur_description_package = LaunchConfiguration("description_package")
+    description_file = LaunchConfiguration("description_file")
     # pipeline = LaunchConfiguration("pipeline")
 
     # Define the path to the UR launch file
@@ -64,10 +75,14 @@ def generate_launch_description():
         "fake_sensor_commands": "false",
         "activate_joint_controller": "true",
         "launch_rviz": "false",
+        "description_package": ur_description_package,
+        "description_file": description_file,
     }
 
     moveit_arguments = {
         "ur_type": "ur10e",
+        "description_package": ur_description_package,
+        "description_file": description_file,
     }
 
     # Define the IncludeLaunchDescription with conditional arguments

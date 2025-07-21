@@ -10,29 +10,39 @@
   <!-- Include base robot definition -->
   <xacro:include filename="$(find ur_description)/urdf/ur.urdf.xacro"/>
 
+  <link name="tcp_ee"/>
+
+  <joint name="deco2_ee" type="fixed">
+    <parent link="tool0"/>
+    <child link="tcp_ee"/>
+    <origin xyz="0.0015 0.00255 0.13502" rpy="0 0 0"/> <!-- TCP location -->
+  </joint>  
+
   <!-- Add end-effector frame -->
   <link name="suction_cup_frame">
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 -1.5708"/>
       <geometry>
-        <box size="0.02 0.02 0.02"/> <!-- Placeholder visual -->
+        <!-- <box size="0.02 0.02 0.02"/>  -->
+        <mesh filename="package://iaac_ur_description/meshes/deco2/deco2_ee_vi.stl" scale="1 1 1"/>
       </geometry>
       <material name="placeholder_grey">
-        <color rgba="0.6 0.6 0.6 1.0"/>
+        <color rgba="0.851 0.439 0.106 0.8"/>
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 -1.5708"/>
       <geometry>
-        <box size="0.02 0.02 0.02"/> <!-- Placeholder collision -->
+        <!-- <box size="0.02 0.02 0.02"/>  -->
+        <mesh filename="package://iaac_ur_description/meshes/deco2/deco2_ee_co.stl" scale="1 1 1"/>
       </geometry>
     </collision>
   </link>
 
   <joint name="vaccum_gripper" type="fixed">
-    <parent link="tool0"/>  <!-- replace with correct parent link if needed -->
+    <parent link="tcp_ee"/> <!-- Attach to the end-effector -->
     <child link="suction_cup_frame"/>
-    <origin xyz="0 0 0.0" rpy="0 0 0"/> <!-- adjust this to position the EE correctly -->
+    <origin xyz="-0.0015 -0.00255 -0.13502" rpy="0 0 0"/> <!-- adjust this to position the EE correctly -->
   </joint>
 
 </robot>
