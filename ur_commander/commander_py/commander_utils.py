@@ -16,7 +16,7 @@ def translate_pose(pose: Pose, translation: List[float]) -> Pose:
     """
     Translate a pose by a given translation vector.
 
-    :param pose: A list of 6 elements representing the pose [x, y, z, qx, qy, qz, qw].
+    :param pose: A Pose object representing the original pose.
     :param translation: A list of 3 elements representing the translation vector [tx, ty, tz].
     :return: A new pose with the translation applied.
     """
@@ -27,7 +27,7 @@ def translate_pose(pose: Pose, translation: List[float]) -> Pose:
         z=pose.position.z + translation[2],
     )
     new_pose.orientation = pose.orientation
-    return
+    return new_pose
 
 
 def rotate_pose_euler(pose: Pose, euler_deg: List, frame: str = "local") -> Pose:

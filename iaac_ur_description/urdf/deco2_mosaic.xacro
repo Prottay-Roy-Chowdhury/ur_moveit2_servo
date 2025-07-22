@@ -45,4 +45,12 @@
     <origin xyz="-0.0015 -0.00255 -0.13502" rpy="0 0 0"/> <!-- adjust this to position the EE correctly -->
   </joint>
 
+  <link name="camera_color_optical_frame"/>
+
+  <joint name="camera_link" type="fixed">
+    <parent link="tool0"/>  <!-- or "tcp_ee" if camera is mounted on EE -->
+    <child link="camera_color_optical_frame"/>
+    <origin xyz="0.074355 -0.103473 -0.020089" rpy="-0.0040865 0.0067126 -0.0100596"/>
+  </joint>
+
 </robot>

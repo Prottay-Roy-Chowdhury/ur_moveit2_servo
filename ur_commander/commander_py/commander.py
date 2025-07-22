@@ -173,7 +173,7 @@ class Commander:
         self._move_sequence_action_client = ActionClient(
             node=self._node,
             action_type=MoveGroupSequence,
-            action_name="move_sequence_action",
+            action_name="sequence_move_group",
             goal_service_qos_profile=QoSProfile(
                 durability=QoSDurabilityPolicy.VOLATILE,
                 reliability=QoSReliabilityPolicy.RELIABLE,
@@ -436,13 +436,12 @@ class Commander:
             rclpy.spin_once(self._node, timeout_sec=0.1)
 
         result = result_future.result().result
-
-        self._node.get_logger().info("Planning successful")
         if result.error_code.val != MoveItErrorCodes.SUCCESS:
             self._node.get_logger().error(
                 f"Planning failed with error code: {result.error_code.val}"
             )
             return None
+        self._node.get_logger().info("Planning successful")
 
         self._visualize_trajectory(result.planned_trajectory)
 
@@ -481,11 +480,11 @@ class Commander:
             )
             return None
 
-        if not self._plan_sequence_srv.wait_for_service(timeout_sec=5.0):
-            self._node.get_logger().error(
-                "Service /plan_motion_sequence is not available, cannot plan motion sequence"
-            )
-            return None
+        # if not self._plan_sequence_srv.wait_for_service(timeout_sec=5.0):
+        #     self._node.get_logger().error(
+        #         "Service /plan_motion_sequence is not available, cannot plan motion sequence"
+        #     )
+        #     return None
 
         if not self._move_sequence_action_client.wait_for_server(timeout_sec=5.0):
             self._node.get_logger().error(
@@ -866,7 +865,7 @@ class Commander:
 
         request = MotionPlanRequest()
         request.group_name = group_name
-        request.cartesian_speed_limited_link = ee_frame
+        # request.cartesian_speed_limited_link = ee_frame
         request.num_planning_attempts = 5
         request.allowed_planning_time = 1.0
         request.max_velocity_scaling_factor = 0.0
@@ -958,14 +957,14 @@ class Commander:
 
             marker.pose = ee_pose_stamped.pose
 
-            # Gradient color from orange to red
-            r = i / (n - 1) if n > 1 else 1.0
-            b = (1.0 - r) * 0.5
+            r = 0.8  # Red stays at maximum throughout
+            g = (1.0 - i / (n - 1)) * 0.5 if n > 1 else 0.0  # Green decreases from 0.5 to 0
+            b = 0.0  # No blue
             marker.color = ColorRGBA(
                 r=r,
-                g=0.0,
+                g=g,
                 b=b,
-                a=1.0,
+                a=0.8,
             )
 
             marker_array.markers.append(marker)

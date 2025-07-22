@@ -132,24 +132,24 @@ def generate_launch_description():
         ],
     )
 
-    # add static transfrorm publisher for camera to base link with quaternion
-    camera_tf_publisher = Node(
-        package="tf2_ros",
-        executable="static_transform_publisher",
-        name="camera_to_base_link_publisher",
-        output="screen",
-        arguments=[
-            "0.074355",  # x
-            "-0.103473",  # y
-            "0.020089",  # z
-            "-0.002435",  # qx
-            "0.003356",  # qy
-            "-0.005016",  # qz
-            "0.999979",  # qw
-            "tool0",  # parent frame
-            "camera_color_optical_frame",  # child frame
-        ],
-    )
+    # # add static transfrorm publisher for camera to base link with quaternion
+    # camera_tf_publisher = Node(
+    #     package="tf2_ros",
+    #     executable="static_transform_publisher",
+    #     name="camera_to_base_link_publisher",
+    #     output="screen",
+    #     arguments=[
+    #         "0.074355",  # x
+    #         "-0.103473",  # y
+    #         "0.020089",  # z
+    #         "-0.002435",  # qx
+    #         "0.003356",  # qy
+    #         "-0.005016",  # qz
+    #         "0.999979",  # qw
+    #         "tool0",  # parent frame
+    #         "camera_color_optical_frame",  # child frame
+    #     ],
+    # )
 
     # The camera nodes for mechmind camera
     static_tf_point_cloud_node = Node(
@@ -188,7 +188,6 @@ def generate_launch_description():
             moveit_launch,
             visualize_pose_srv_node,
             camera_node,
-            camera_tf_publisher,
             static_tf_point_cloud_node,
             static_tf_textured_point_cloud_node,
         ]
