@@ -110,8 +110,8 @@ def generate_launch_description():
     # Launch the pose visualization node
     visualize_pose_srv_node = Node(
         package="ur_commander",
-        executable="visualize_pose_srv.py",
-        name="visualize_pose_srv_node",
+        executable="commander_viz.py",
+        name="commander_viz",
         output="screen",
     )
 
