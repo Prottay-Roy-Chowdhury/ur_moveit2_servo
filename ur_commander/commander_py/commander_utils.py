@@ -62,3 +62,15 @@ def quat_to_euler(quat: Quaternion) -> List[float]:
     rotation = Rotation.from_quat([quat.x, quat.y, quat.z, quat.w])
     euler_angles = rotation.as_euler("xyz", degrees=True)
     return list(euler_angles)
+
+
+def euler_to_quat(euler_deg: List[float]) -> Quaternion:
+    """
+    Convert Euler angles in degrees to a Quaternion.
+
+    :param euler_deg: A list of Euler angles [roll, pitch, yaw] in degrees.
+    :return: A Quaternion message representing the rotation.
+    """
+    rotation = Rotation.from_euler("xyz", euler_deg, degrees=True)
+    q = rotation.as_quat()
+    return Quaternion(x=q[0], y=q[1], z=q[2], w=q[3])

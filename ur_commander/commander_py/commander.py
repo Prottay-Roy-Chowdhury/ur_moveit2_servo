@@ -222,7 +222,7 @@ class Commander:
 
         self._plan_sequence_srv = self._node.create_client(
             srv_type=GetMotionSequence,
-            srv_name="/plan_motion_sequence",
+            srv_name="/plan_sequence_path",
             qos_profile=QoSProfile(
                 durability=QoSDurabilityPolicy.VOLATILE,
                 reliability=QoSReliabilityPolicy.RELIABLE,
@@ -451,9 +451,7 @@ class Commander:
         self,
         pose_goals: List[MotionPlanRequest] = None,
         joint_goals: List[MotionPlanRequest] = None,
-        pipeline_ids: Optional[
-            List[Literal["ompl", "pilz_industrial_motion_planner", "stomp", "chomp"]]
-        ] = None,
+        pipeline_id: str = "pilz_industrial_motion_planner",
         planner_ids: Optional[List[Literal["", "PTP", "LIN", "CIRC", "CHOMP", "STOMP"]]] = None,
         blends: Optional[List[float]] = None,
         acc_scale: float = 0.1,
@@ -480,11 +478,11 @@ class Commander:
             )
             return None
 
-        # if not self._plan_sequence_srv.wait_for_service(timeout_sec=5.0):
-        #     self._node.get_logger().error(
-        #         "Service /plan_motion_sequence is not available, cannot plan motion sequence"
-        #     )
-        #     return None
+        if not self._plan_sequence_srv.wait_for_service(timeout_sec=5.0):
+            self._node.get_logger().error(
+                "Service /plan_motion_sequence is not available, cannot plan motion sequence"
+            )
+            return None
 
         if not self._move_sequence_action_client.wait_for_server(timeout_sec=5.0):
             self._node.get_logger().error(
@@ -496,66 +494,97 @@ class Commander:
         goal_req = pose_goals if pose_goals is not None else joint_goals
 
         # Set planner and pipeline IDs, defaulting if not provided
-        if pipeline_ids is None:
-            pipeline_ids = ["ompl"] * len(goal_req)
         if planner_ids is None:
             planner_ids = [""] * len(goal_req)
         if blends is None:
             blends = [0.0] * len(goal_req)
 
-        # The last blend values has to be 0.0
-        blends[-1] = 0.0
         move_sequence_goal = MoveGroupSequence.Goal()
-        sequence_req_items = MotionSequenceItem()
+        sequence_items = []
 
         for i, goal in enumerate(goal_req):
-            sequence_req_items.req.append(goal)
-            sequence_req_items.req.planner_id.append(planner_ids[i])
-            sequence_req_items.req.pipeline_id.append(pipeline_ids[i])
-            sequence_req_items.req.max_acceleration_scaling_factor.append(acc_scale)
-            sequence_req_items.req.max_velocity_scaling_factor.append(vel_scale)
+            sequence_item = MotionSequenceItem()
+            sequence_item.req = goal
+            sequence_item.req.planner_id = planner_ids[i]
+            sequence_item.req.pipeline_id = pipeline_id
+            sequence_item.req.max_acceleration_scaling_factor = acc_scale
+            sequence_item.req.max_velocity_scaling_factor = vel_scale
+            sequence_item.blend_radius = blends[i]
 
-        sequence_req_items.blend_radius = blends
+            sequence_items.append(sequence_item)
 
-        move_sequence_goal.request.items = sequence_req_items
+        # The last blend values has to be 0.0
+        sequence_items[-1].blend_radius = 0.0
 
-        send_goal_future = self._move_sequence_action_client.send_goal_async(
-            goal=move_sequence_goal,
-            feedback_callback=None,
-        )
+        # Remove the start state except the fitst item
+        if len(sequence_items) > 1:
+            for item in sequence_items[1:]:
+                item.req.start_state = RobotState()
 
-        while not send_goal_future.done():
+        move_sequence_goal.request.items = sequence_items
+
+        # send_goal_future = self._move_sequence_action_client.send_goal_async(
+        #     goal=move_sequence_goal,
+        #     feedback_callback=None,
+        # )
+
+        # while not send_goal_future.done():
+        #     rclpy.spin_once(self._node, timeout_sec=0.1)
+
+        # goal_handle = send_goal_future.result()
+
+        # if not goal_handle.accepted:
+        #     self._node.get_logger().error(
+        #         "Goal was rejected by the action server /move_sequence_action"
+        #     )
+        #     return None
+
+        # result_future = goal_handle.get_result_async()
+        # while not result_future.done():
+        #     rclpy.spin_once(self._node, timeout_sec=0.1)
+
+        # if result_future.result() is None:
+        #     self._node.get_logger().error(
+        #         "Failed to get result from action server /move_sequence_action"
+        #     )
+        #     return None
+
+        # result = result_future.result().result
+        # if result.error_code.val != MoveItErrorCodes.SUCCESS:
+        #     self._node.get_logger().error(
+        #         f"Planning sequence failed with error code: {result.error_code.val}"
+        #     )
+        #     return None
+
+        # self._node.get_logger().info("Planning sequence successful")
+        # self._visualize_trajectory(result.planned_trajectories[0])
+
+        # return result.planned_trajectories[0]
+
+        sequence_request = GetMotionSequence.Request()
+        sequence_request.request.items = sequence_items
+
+        # Call the planning service
+        future = self._plan_sequence_srv.call_async(sequence_request)
+
+        while not future.done():
             rclpy.spin_once(self._node, timeout_sec=0.1)
 
-        goal_handle = send_goal_future.result()
-
-        if not goal_handle.accepted:
-            self._node.get_logger().error(
-                "Goal was rejected by the action server /move_sequence_action"
-            )
+        try:
+            response = future.result()
+        except Exception as e:
+            self._node.get_logger().error(f"Service call failed: {e}")
             return None
 
-        result_future = goal_handle.get_result_async()
-        while not result_future.done():
-            rclpy.spin_once(self._node, timeout_sec=0.1)
-
-        if result_future.result() is None:
+        if response.error_code.val != MoveItErrorCodes.SUCCESS:
             self._node.get_logger().error(
-                "Failed to get result from action server /move_sequence_action"
-            )
-            return None
-
-        result = result_future.result().result
-        if result.error_code.val != MoveItErrorCodes.SUCCESS:
-            self._node.get_logger().error(
-                f"Planning sequence failed with error code: {result.error_code.val}"
+                f"Planning sequence failed with error code: {response.error_code.val}"
             )
             return None
 
         self._node.get_logger().info("Planning sequence successful")
-        self._visualize_trajectory(result.planned_trajectories[0])
-
-        return result.planned_trajectories[0]
+        self._visualize_trajectory(response.planned_trajectories[0])
+        return response.planned_trajectories[0]
 
     def set_pose_goal(
         self,
