@@ -2,6 +2,8 @@
 
 from typing import List, Literal, Optional, Tuple, Union
 
+from requests import request
+
 import rclpy
 from rclpy.action import ActionClient
 from rclpy.callback_groups import CallbackGroup
@@ -443,30 +445,36 @@ class Commander:
             return None
         self._node.get_logger().info("Planning successful")
 
-        self._visualize_trajectory(result.planned_trajectory)
+        self._visualize_trajectory(
+            result.planned_trajectory,
+            ee_frame=goal_req[-1].goal_constraints[-1].position_constraints[0].link_name,
+        )
 
         return result.planned_trajectory
 
     def plan_sequence(
         self,
-        pose_goals: List[MotionPlanRequest] = None,
-        joint_goals: List[MotionPlanRequest] = None,
-        pipeline_id: str = "pilz_industrial_motion_planner",
-        planner_ids: Optional[List[Literal["", "PTP", "LIN", "CIRC", "CHOMP", "STOMP"]]] = None,
+        pose_goals: Optional[List[MotionPlanRequest]] = None,
+        joint_goals: Optional[List[MotionPlanRequest]] = None,
+        pipeline_id: Literal[
+            "ompl", "pilz_industrial_motion_planner"
+        ] = "pilz_industrial_motion_planner",
+        planner_ids: Optional[List[Literal["PTP", "LIN", "CIRC", ""]]] = None,
         blends: Optional[List[float]] = None,
         acc_scale: float = 0.1,
         vel_scale: float = 0.1,
-    ) -> MotionSequenceRequest:
+    ) -> Optional[RobotTrajectory]:
         """
         Plans a motion sequence based on the provided pose or joint goals.
 
         :param pose_goals: List of MotionPlanRequest containing pose constraints.
         :param joint_goals: List of MotionPlanRequest containing joint constraints.
-        :param planner_id: The planner to use for the motion plan.
-        :param pipeline_id: The pipeline to use for the motion plan.
+        :param pipeline_id: The pipeline to use for the motion plan ("ompl" or "pilz_industrial_motion_planner").
+        :param planner_ids: List of planner IDs for each goal.
+        :param blends: List of blend radii for each goal.
         :param acc_scale: Acceleration scaling factor.
         :param vel_scale: Velocity scaling factor.
-        :return: MotionSequenceRequest containing the planned trajectory.
+        :return: RobotTrajectory containing the planned trajectory.
         """
         if pose_goals is None and joint_goals is None:
             self._node.get_logger().error("No goals provided for planning sequence")
@@ -480,13 +488,7 @@ class Commander:
 
         if not self._plan_sequence_srv.wait_for_service(timeout_sec=5.0):
             self._node.get_logger().error(
-                "Service /plan_motion_sequence is not available, cannot plan motion sequence"
-            )
-            return None
-
-        if not self._move_sequence_action_client.wait_for_server(timeout_sec=5.0):
-            self._node.get_logger().error(
-                "Action server /move_sequence_action is not available, cannot plan motion sequence"
+                "Service /plan_sequence_path is not available, cannot plan motion sequence"
             )
             return None
 
@@ -495,13 +497,13 @@ class Commander:
 
         # Set planner and pipeline IDs, defaulting if not provided
         if planner_ids is None:
-            planner_ids = [""] * len(goal_req)
+            # Default planner_id for pilz is "PTP", for ompl is ""
+            default_id = "PTP" if pipeline_id == "pilz_industrial_motion_planner" else ""
+            planner_ids = [default_id] * len(goal_req)
         if blends is None:
             blends = [0.0] * len(goal_req)
 
-        move_sequence_goal = MoveGroupSequence.Goal()
         sequence_items = []
-
         for i, goal in enumerate(goal_req):
             sequence_item = MotionSequenceItem()
             sequence_item.req = goal
@@ -510,56 +512,15 @@ class Commander:
             sequence_item.req.max_acceleration_scaling_factor = acc_scale
             sequence_item.req.max_velocity_scaling_factor = vel_scale
             sequence_item.blend_radius = blends[i]
-
             sequence_items.append(sequence_item)
 
-        # The last blend values has to be 0.0
+        # The last blend value has to be 0.0
         sequence_items[-1].blend_radius = 0.0
 
-        # Remove the start state except the fitst item
+        # Remove the start state except the first item
         if len(sequence_items) > 1:
             for item in sequence_items[1:]:
                 item.req.start_state = RobotState()
-
-        move_sequence_goal.request.items = sequence_items
-
-        # send_goal_future = self._move_sequence_action_client.send_goal_async(
-        #     goal=move_sequence_goal,
-        #     feedback_callback=None,
-        # )
-
-        # while not send_goal_future.done():
-        #     rclpy.spin_once(self._node, timeout_sec=0.1)
-
-        # goal_handle = send_goal_future.result()
-
-        # if not goal_handle.accepted:
-        #     self._node.get_logger().error(
-        #         "Goal was rejected by the action server /move_sequence_action"
-        #     )
-        #     return None
-
-        # result_future = goal_handle.get_result_async()
-        # while not result_future.done():
-        #     rclpy.spin_once(self._node, timeout_sec=0.1)
-
-        # if result_future.result() is None:
-        #     self._node.get_logger().error(
-        #         "Failed to get result from action server /move_sequence_action"
-        #     )
-        #     return None
-
-        # result = result_future.result().result
-        # if result.error_code.val != MoveItErrorCodes.SUCCESS:
-        #     self._node.get_logger().error(
-        #         f"Planning sequence failed with error code: {result.error_code.val}"
-        #     )
-        #     return None
-
-        # self._node.get_logger().info("Planning sequence successful")
-        # self._visualize_trajectory(result.planned_trajectories[0])
-
-        # return result.planned_trajectories[0]
 
         sequence_request = GetMotionSequence.Request()
         sequence_request.request.items = sequence_items
@@ -576,15 +537,18 @@ class Commander:
             self._node.get_logger().error(f"Service call failed: {e}")
             return None
 
-        if response.error_code.val != MoveItErrorCodes.SUCCESS:
+        if response.response.error_code.val != MoveItErrorCodes.SUCCESS:
             self._node.get_logger().error(
-                f"Planning sequence failed with error code: {response.error_code.val}"
+                f"Planning segment failed with error code: {response.response.error_code.val}"
             )
             return None
 
         self._node.get_logger().info("Planning sequence successful")
-        self._visualize_trajectory(response.planned_trajectories[0])
-        return response.planned_trajectories[0]
+        self._visualize_trajectory(
+            trajectory=response.response.planned_trajectories[0],
+            ee_frame=goal_req[-1].goal_constraints[-1].position_constraints[0].link_name,
+        )
+        return response.response.planned_trajectories[0]
 
     def set_pose_goal(
         self,
@@ -833,7 +797,7 @@ class Commander:
         request = GetPositionFK.Request()
         request.header.frame_id = self._base_frame
         request.header.stamp = self._node.get_clock().now().to_msg()
-        request.fk_link_names = ee_link if ee_link is not None else self._ee_frame
+        request.fk_link_names = [ee_link] if ee_link is not None else [self._ee_frame]
 
         if joint_state is not None:
             if isinstance(joint_state, JointState):
@@ -941,6 +905,7 @@ class Commander:
     def _visualize_trajectory(
         self,
         trajectory: RobotTrajectory,
+        ee_frame: Optional[str] = "tool0",
     ) -> None:
         """
         Publish the trajectory for visualization.
@@ -970,7 +935,7 @@ class Commander:
         for i, point in enumerate(trajectory.joint_trajectory.points):
             ee_pose_stamped = self.compute_fk(
                 joint_state=list(point.positions),
-                ee_link=self._ee_frame,
+                ee_link=ee_frame,
             )
             marker = Marker()
             marker.header = Header(
