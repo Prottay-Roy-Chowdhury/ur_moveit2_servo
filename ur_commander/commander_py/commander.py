@@ -447,7 +447,7 @@ class Commander:
 
         self._visualize_trajectory(
             result.planned_trajectory,
-            ee_frame=goal_req[-1].goal_constraints[-1].position_constraints[0].link_name,
+            ee_frame=goal_req.goal_constraints[-1].position_constraints[0].link_name,
         )
 
         return result.planned_trajectory
