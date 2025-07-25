@@ -370,6 +370,7 @@ class Commander:
         joint_goal: MotionPlanRequest = None,
         pipeline_id: Literal["ompl", "pilz_industrial_motion_planner", "stomp", "chomp"] = "ompl",
         planner_id: Literal["", "PTP", "LIN", "CIRC", "CHOMP", "STOMP"] = "",
+        ee_frame: Optional[str] = None,
         acc_scale: float = 0.1,
         vel_scale: float = 0.1,
     ) -> MotionPlanResponse:
@@ -445,11 +446,16 @@ class Commander:
             return None
         self._node.get_logger().info("Planning successful")
 
-        self._visualize_trajectory(
-            result.planned_trajectory,
-            ee_frame=goal_req.goal_constraints[-1].position_constraints[0].link_name,
-        )
-
+        if pose_goal is not None:
+            self._visualize_trajectory(
+                result.planned_trajectory,
+                ee_frame=goal_req.goal_constraints[-1].position_constraints[0].link_name,
+            )
+        else:
+            self._visualize_trajectory(
+                result.planned_trajectory,
+                ee_frame=ee_frame if  ee_frame is not None else self._ee_frame[0],
+            )
         return result.planned_trajectory
 
     def plan_sequence(
@@ -461,6 +467,7 @@ class Commander:
         ] = "pilz_industrial_motion_planner",
         planner_ids: Optional[List[Literal["PTP", "LIN", "CIRC", ""]]] = None,
         blends: Optional[List[float]] = None,
+        ee_frame: Optional[str] = None,
         acc_scale: float = 0.1,
         vel_scale: float = 0.1,
     ) -> Optional[RobotTrajectory]:
@@ -546,7 +553,7 @@ class Commander:
         self._node.get_logger().info("Planning sequence successful")
         self._visualize_trajectory(
             trajectory=response.response.planned_trajectories[0],
-            ee_frame=goal_req[-1].goal_constraints[-1].position_constraints[0].link_name,
+            ee_frame=ee_frame if ee_frame is not None else self._ee_frame[0],
         )
         return response.response.planned_trajectories[0]
 
