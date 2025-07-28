@@ -15,6 +15,7 @@ find_package(geometry_msgs REQUIRED)
 # Service files
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/VisualizePoses.srv"
+  "srv/GetTransform.srv"
   DEPENDENCIES builtin_interfaces geometry_msgs
 )
 
@@ -30,6 +31,8 @@ install(DIRECTORY
 install(PROGRAMS
   scripts/camera_info_publisher.py
   scripts/image_publisher.py
+  scripts/tf_service_server.py
+  scripts/tf_service_client.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

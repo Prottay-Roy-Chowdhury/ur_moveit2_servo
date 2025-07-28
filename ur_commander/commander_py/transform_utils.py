@@ -6,7 +6,7 @@ This module provides:
 - Simple helpers for using poses mathematically
 """
 
-from geometry_msgs.msg import Pose, Quaternion, Point
+from geometry_msgs.msg import Pose, Quaternion, Point, Transform
 
 from scipy.spatial.transform import Rotation
 
@@ -37,3 +37,16 @@ def matrix_to_pose(T: np.ndarray) -> Pose:
     pose.orientation = Quaternion(x=quat[0], y=quat[1],
                                   z=quat[2], w=quat[3])
     return pose
+
+
+def transform_to_matrix(transform: Transform) -> np.ndarray:
+    """
+    Convert a geometry_msgs/Transform to a 4x4 transformation matrix.
+    """
+    # Convert Transform to Pose (they have similar fields)
+    pose = Pose()
+    pose.position.x = transform.translation.x
+    pose.position.y = transform.translation.y
+    pose.position.z = transform.translation.z
+    pose.orientation = transform.rotation
+    return pose_to_matrix(pose)

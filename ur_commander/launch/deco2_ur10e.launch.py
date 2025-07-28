@@ -181,12 +181,22 @@ def generate_launch_description():
         ],
     )
 
+    # Launch the tf_service_server node
+    tf_service_node = Node(
+        package="ur_commander",
+        executable="tf_service_server.py",
+        name="tf_service_server",
+        output="screen",
+    )
+
+
     return LaunchDescription(
         declared_arguments
         + [
             ur_bringup_launch,
             moveit_launch,
             visualize_pose_srv_node,
+            tf_service_node,
             camera_node,
             static_tf_point_cloud_node,
             static_tf_textured_point_cloud_node,
