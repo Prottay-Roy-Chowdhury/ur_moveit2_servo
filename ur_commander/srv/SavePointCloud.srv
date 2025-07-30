@@ -1,0 +1,5 @@
+string          filename
+bool            textured  # true = use textured point cloud, false = normal
+---
+bool            success
+string          message

@@ -16,6 +16,7 @@ find_package(geometry_msgs REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/VisualizePoses.srv"
   "srv/GetTransform.srv"
+  "srv/SavePointCloud.srv"
   DEPENDENCIES builtin_interfaces geometry_msgs
 )
 
