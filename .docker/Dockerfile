@@ -56,7 +56,8 @@ RUN pip3 install --no-cache-dir --ignore-installed\
     panda \
     matplotlib \
     setuptools \
-    rosbags     
+    rerun-sdk \
+    rosbags
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-$ROS_DISTRO-rqt \

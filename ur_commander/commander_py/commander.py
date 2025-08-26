@@ -306,6 +306,18 @@ class Commander:
             callback_group=self._callback_group,
         )
 
+        self._collision_object_publisher = self._node.create_publisher(
+            msg_type=CollisionObject,
+            topic="/collision_object",
+            qos_profile=10,
+        )
+
+        self._attached_collision_object_publisher = self._node.create_publisher(
+            msg_type=AttachedCollisionObject,
+            topic="/attached_collision_object",
+            qos_profile=10,
+        )
+
     def execute_trajectory(
         self,
         trajectory: JointTrajectory,
@@ -454,7 +466,7 @@ class Commander:
         else:
             self._visualize_trajectory(
                 result.planned_trajectory,
-                ee_frame=ee_frame if  ee_frame is not None else self._ee_frame[0],
+                ee_frame=ee_frame if ee_frame is not None else self._ee_frame[0],
             )
         return result.planned_trajectory
 
@@ -834,6 +846,54 @@ class Commander:
             return None
 
         return future.result().pose_stamped[0]
+
+    def add_collision_object(
+        self,
+        object_id: str,
+        object_type: int,
+        dimensions: Tuple[float, float, float],
+        pose: Pose,
+        frame_id: Optional[str] = None,
+        operation: int = CollisionObject.ADD,
+    ):
+        """
+        Add a collision object to the planning scene.
+
+        `object_type` can be one of the following:
+            SolidPrimitive.BOX      == 1
+            SolidPrimitive.SPHERE   == 2
+            SolidPrimitive.CYLINDER == 3
+            SolidPrimitive.CONE     == 4
+        """
+        if pose is not None:
+            pose_stamped = PoseStamped(
+                header=Header(
+                    stamp=self._node.get_clock().now().to_msg(),
+                    frame_id=frame_id if frame_id else self._base_frame,
+                ),
+                pose=pose,
+            )
+
+            collision_msg = CollisionObject(
+                id=object_id,
+                header=pose_stamped.header,
+                pose=pose_stamped.pose,
+                operation=operation,
+            )
+            collision_msg.primitives.append(SolidPrimitive(type=object_type, dimensions=dimensions))
+
+            self._collision_object_publisher.publish(collision_msg)
+
+    def remove_collision_object(self, object_id: str):
+        """
+        Remove a collision object from the planning scene.
+        """
+        collision_msg = CollisionObject(
+            id=object_id,
+            operation=CollisionObject.REMOVE,
+        )
+        collision_msg.header.stamp = self._node.get_clock().now().to_msg()
+        self._collision_object_publisher.publish(collision_msg)
 
     def _joint_state_callback(self, msg: JointState) -> None:
         """
