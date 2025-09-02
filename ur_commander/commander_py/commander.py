@@ -859,11 +859,12 @@ class Commander:
         """
         Add a collision object to the planning scene.
 
-        `object_type` can be one of the following:
-            SolidPrimitive.BOX      == 1
-            SolidPrimitive.SPHERE   == 2
-            SolidPrimitive.CYLINDER == 3
-            SolidPrimitive.CONE     == 4
+        :param object_id: Unique identifier for the collision object.
+        :param object_type: Type of the collision object (1=box, 2=sphere, 3=cylinder, 4=cone).
+        :param dimensions: Dimensions of the collision object (length, width, height).
+        :param pose: Pose of the collision object in the planning scene.
+        :param frame_id: Frame ID for the pose (optional).
+        :param operation: Operation to perform (add, remove, attach).
         """
         if pose is not None:
             pose_stamped = PoseStamped(
@@ -894,6 +895,37 @@ class Commander:
         )
         collision_msg.header.stamp = self._node.get_clock().now().to_msg()
         self._collision_object_publisher.publish(collision_msg)
+
+    def attach_collision_object(
+        self,
+        object_id: str,
+        link_name: Optional[str] = None,
+        touch_links: List[str] = [],
+        weight: float = 0.0,
+    ) -> None:
+        """
+        Attach a collision object to a link in the planning scene.
+        """
+
+        attach_msg = AttachedCollisionObject(
+            object=CollisionObject(id=object_id, operation=CollisionObject.ADD),
+            link_name=link_name,
+            touch_links=touch_links,
+            weight=weight,
+        )
+
+        self._attached_collision_object_publisher.publish(attach_msg)
+
+    def detach_collision_object(self) -> None:
+        """
+        Detach a collision object from a link in the planning scene.
+        """
+
+        detach_msg = AttachedCollisionObject(
+            object=CollisionObject(operation=CollisionObject.REMOVE),
+        )
+
+        self._attached_collision_object_publisher.publish(detach_msg)
 
     def _joint_state_callback(self, msg: JointState) -> None:
         """
