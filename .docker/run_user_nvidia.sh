@@ -18,5 +18,6 @@ docker run -it --privileged \
     --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
     --volume="/dev:/dev" \
     --net=host \
+    --runtime=nvidia \
     --gpus 'all,"capabilities=compute,display,graphics,utility,video"' \
     deco2:latest
