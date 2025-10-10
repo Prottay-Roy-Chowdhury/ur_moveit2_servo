@@ -15,7 +15,7 @@ def generate_launch_description():
     declared_arguments = [
         DeclareLaunchArgument(
             "sim",
-            default_value="true",
+            default_value="false",
             description="Launch in simulation mode if true, real robot mode if false",
         ),
         DeclareLaunchArgument(
@@ -108,7 +108,7 @@ def generate_launch_description():
         prefix="xterm -e",
         parameters=[
             {"save_file": True},
-            {"camera_ip": "172.20.112.1"},  # change to your camera ip
+            {"camera_ip": "192.168.56.100"},  # change to your camera ip
             {"user_external_intri": False},
             {"fx": 1727.4641025602748},
             {"fy": 1727.4586926701952},
@@ -132,7 +132,7 @@ def generate_launch_description():
         parameters=[
             {
                 "image_is_rectified": True,
-                "marker_size": 0.15,  # Marker size in meters
+                "marker_size": 0.14,  # Marker size in meters
                 "marker_id": 24,  # Marker ID
                 "reference_frame": "",
                 "camera_frame": "camera_color_optical_frame",
