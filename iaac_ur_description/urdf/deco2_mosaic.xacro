@@ -15,7 +15,7 @@
   <joint name="deco2_ee" type="fixed">
     <parent link="tool0"/>
     <child link="tcp_ee"/>
-    <origin xyz="0.0015 0.00255 0.13502" rpy="0 0 0"/> <!-- TCP location -->
+    <origin xyz="0.00312 0.00186 0.13315" rpy="0 0 0"/> <!-- TCP location -->
   </joint>  
 
   <!-- Add end-effector frame -->
@@ -42,7 +42,7 @@
   <joint name="vaccum_gripper" type="fixed">
     <parent link="tcp_ee"/> <!-- Attach to the end-effector -->
     <child link="suction_cup_frame"/>
-    <origin xyz="-0.00312 -0.00017 -0.13501" rpy="0 0 0"/> <!-- adjust this to position the EE correctly -->
+    <origin xyz="-0.00312 -0.00186 -0.13315" rpy="0 0 0"/> <!-- adjust this to position the EE correctly -->
   </joint>
 
   <link name="camera_color_optical_frame"/>
@@ -50,7 +50,7 @@
   <joint name="camera_link" type="fixed">
     <parent link="tool0"/>  <!-- or "tcp_ee" if camera is mounted on EE -->
     <child link="camera_color_optical_frame"/>
-    <origin xyz="0.083810 -0.108334 -0.029525" rpy="-0.011312 0.0000671 -0.0016056"/>
+    <origin xyz="0.087143 -0.104806 0.030877" rpy="-0.0058639 0.0005677 -0.0074144"/>
   </joint>
 
 </robot>

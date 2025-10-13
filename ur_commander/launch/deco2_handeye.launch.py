@@ -132,8 +132,8 @@ def generate_launch_description():
         parameters=[
             {
                 "image_is_rectified": True,
-                "marker_size": 0.14,  # Marker size in meters
-                "marker_id": 24,  # Marker ID
+                "marker_size": 0.15,  # Marker size in meters
+                "marker_id": 10,  # Marker ID
                 "reference_frame": "",
                 "camera_frame": "camera_color_optical_frame",
                 "marker_frame": "aruco_marker_frame",
