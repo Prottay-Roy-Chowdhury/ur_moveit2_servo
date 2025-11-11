@@ -2,7 +2,7 @@
 
 echo -e "Starting up deco2 container \n >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
 echo -e "This container will access to the users home directory and log in as the user with their password and x sever access.\nYou will not own the workspace though, use sudo chown -R $USER /dev_ws"
-echo -e "Source the workspace with source devel/setup.bash"
+echo -e "Source the workspace with source devel/setup.zsh"
 
 docker run -it --privileged \
     --user=$(id -u $USER):$(id -g $USER) \
