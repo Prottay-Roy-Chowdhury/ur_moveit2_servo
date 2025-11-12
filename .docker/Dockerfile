@@ -41,18 +41,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends\
 
 RUN pip3 install --upgrade pip setuptools wheel && \
     pip3 install --no-cache-dir --ignore-installed \
-    flake8-blind-except \
-    flake8-builtins \
-    flake8-comprehensions \
-    flake8-deprecated \
-    flake8-return \
-    flake8-length \
-    flake8-todo \
-    flake8-quotes \
+    ruff \
     black \
-    mypy \
-    prospector \
-    pylint \
     numpy \
     opencv-python \
     pandas \
@@ -60,7 +50,7 @@ RUN pip3 install --upgrade pip setuptools wheel && \
     setuptools \
     rerun-sdk \
     rosbags
-
+    
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-$ROS_DISTRO-rqt \
     ros-$ROS_DISTRO-rqt-common-plugins \

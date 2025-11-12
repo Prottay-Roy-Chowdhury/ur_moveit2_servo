@@ -2,13 +2,13 @@
 # This document contains instructions for building the sample program and using the sample program to
 # complete hand-eye calibration.
 
-import cv2
 import time
-from math import sin, cos
+from math import cos, sin
 
-from mecheye.shared import *
+import cv2
 from mecheye.area_scan_3d_camera import *
-from mecheye.area_scan_3d_camera_utils import find_and_connect, confirm_capture_3d
+from mecheye.area_scan_3d_camera_utils import confirm_capture_3d, find_and_connect
+from mecheye.shared import *
 
 
 def get_input_int(min: int, max: int, warning_message: str):

@@ -1,3 +1,54 @@
 {
+    // ===== ROS & Python Environment =====
+    "ros.distro": "humble",
+    "python.defaultInterpreterPath": "/usr/bin/python3",
+
+    // ROS Python paths
+    "python.analysis.extraPaths": [
+        "/opt/ros/${config:ros.distro}/lib/python3.10/site-packages"
+    ],
+    "python.analysis.autoImportCompletions": true,
+    "python.analysis.autoSearchPaths": true,
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.diagnosticMode": "workspace",
+
+    "pylint.enabled": false,
+    // ===== Formatting & Linting (Ruff + Black) =====
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
+    },
+
+    "ruff.lineLength": 100,
+    "ruff.lint.select": [
+        "E4",  // whitespace
+        "E7",  // indentation
+        "E9",  // syntax
+        "F"    // errors
+    ],
+
+    // ===== File Explorer =====
+    "files.exclude": {
+        "**/*.pyc": true,
+        "**/__pycache__": true,
+        "**/node_modules": true,
+        "**/.mypy_cache/**": true,
+        ".nyc_output": true,
+        "obj": true,
+        "bin": true
+    },
+
+    // ===== Notebook =====
+    "notebook.formatOnCellExecution": true,
+    "notebook.formatOnSave.enabled": true,
+    "notebook.codeActionsOnSave": {
+        "notebook.source.fixAll": "explicit",
+        "notebook.source.organizeImports": "explicit"
+    },
+
+    // ===== CMake =====
     "cmake.sourceDirectory": "/dev_ws/src/Universal_Robots_ROS2_Driver/ur_calibration"
 }
