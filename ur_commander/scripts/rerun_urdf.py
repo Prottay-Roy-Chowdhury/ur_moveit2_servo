@@ -58,6 +58,8 @@ def log_scene(
         if mesh:
             # If vertex colors are set, use the average color as the albedo factor
             # for the whole mesh.
+            # If vertex colors are set, use the average color as the albedo factor
+            # for the whole mesh.
             mean_vertex_color = None
             try:
                 colors = np.mean(mesh.visual.vertex_colors, axis=0)
@@ -76,7 +78,13 @@ def log_scene(
             except Exception:
                 pass
 
-            albedo_factor = mean_vertex_color or visual_color
+            # FIXED: NumPy arrays cannot use `or` because truth value is ambiguous
+            if mean_vertex_color is not None and mean_vertex_color.size > 0:
+                albedo_factor = mean_vertex_color
+            elif visual_color is not None and visual_color.size > 0:
+                albedo_factor = visual_color
+            else:
+                albedo_factor = None
 
             rr.log(
                 path,
