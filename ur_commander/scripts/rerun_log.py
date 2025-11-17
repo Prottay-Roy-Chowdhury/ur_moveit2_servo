@@ -42,7 +42,11 @@ class RerunTFStreamer(Node):
         rr.log(
             "bounding_box",
             rr.Boxes3D(
-                half_sizes=[3, 3, 3],
+                half_sizes=[
+                    1,
+                    1,
+                    1,
+                ],
                 centers=[0, 0, 1],
                 colors=[255, 255, 255, 255],
             ),
@@ -66,44 +70,36 @@ class RerunTFStreamer(Node):
             callback_group=self.callback_group,
         )
 
-    def urdf_callback(self, msg: String):
-        """Load and log the URDF once received."""
-        self.get_logger().info("Received URDF → loading in Rerun…")
+        self.create_timer(0.1, self.timer_callback, callback_group=self.callback_group)
 
-        # Safely load the URDF from the ROS parameter string
-        try:
-            urdf = rerun_urdf.load_urdf_from_msg(msg)
-        except Exception as e:
-            self.get_logger().error(f"Failed to load URDF: {e}")
-            return
+    def timer_callback(self):
+        """Periodically log TFs as Transform3D."""
+        now = self.get_clock().now()
+        rr.set_time(timeline="ros_time", timestamp=now.nanoseconds * 1e-9)
 
-        # Optional: scale camera frame for visualization if exists
-        if "camera_color_optical_frame" in urdf.scene.graph.nodes:
-            from trimesh.transformations import scale_matrix
+        for path in self.path_to_frame.keys():
+            self.log_tf_as_transform3d(path, now)
 
-            orig = urdf.scene.graph.get("camera_color_optical_frame")[0]
-            scale = scale_matrix(0.00254)
-            urdf.scene.graph.update(frame_to="camera_color_optical_frame", matrix=orig.dot(scale))
+    def urdf_callback(self, urdf_msg: String) -> None:
+        """Log a URDF using `log_scene` from `rerun_urdf`."""
+        urdf = rerun_urdf.load_urdf_from_msg(urdf_msg)
 
-        # Log the URDF to Rerun
-        try:
-            rerun_urdf.log_scene(
-                scene=urdf.scene,
-                node=urdf.base_link,
-                path="map/robot/urdf",
-                static=True,
-            )
-            self.get_logger().info("URDF successfully logged to Rerun.")
-        except Exception as e:
-            self.get_logger().error(f"Failed to log URDF scene: {e}")
+        # The turtlebot URDF appears to have scale set incorrectly for the camera-link
+        # Although rviz loads it properly `yourdfpy` does not.
+        orig, _ = urdf.scene.graph.get("camera_color_optical_frame")
+        scale = trimesh.transformations.scale_matrix(0.00254)
+        urdf.scene.graph.update(frame_to="camera_link", matrix=orig.dot(scale))
+        scaled = urdf.scene.scaled(1.0)
+
+        rerun_urdf.log_scene(scene=scaled, node=urdf.base_link, path="map/robot/urdf", static=True)
 
     def log_tf_as_transform3d(self, path: str, time: Time):
         """Look up a TF transform and log it in Rerun."""
         parent_path = path.rsplit("/", 1)[0]
-        child_frame = self.path_to_frame.get(path)
-        parent_frame = self.path_to_frame.get(parent_path)
-
-        if not child_frame or not parent_frame:
+        child_frame = self.path_to_frame[path]
+        parent_frame = self.path_to_frame[parent_path]
+        if not child_frame:
+            print(f"No child frame for path {path}")
             return
 
         try:
@@ -113,14 +109,15 @@ class RerunTFStreamer(Node):
             t = tf.transform.translation
             q = tf.transform.rotation
             rr.log(
-                path,
+                f"map/robot/{path}",
                 rr.Transform3D(
                     translation=[t.x, t.y, t.z],
                     rotation=rr.Quaternion(xyzw=[q.x, q.y, q.z, q.w]),
                 ),
             )
         except TransformException as e:
-            self.get_logger().warn(f"TF lookup failed: {e}")
+            # Don't spam warnings for missing transforms
+            pass
 
     def cam_info_callback(self, info: CameraInfo):
         """Log camera intrinsics."""
@@ -142,7 +139,8 @@ class RerunTFStreamer(Node):
 
 
 def main():
-    rr.init("rerun_deco2_stream")
+    # Initialize Rerun and spawn viewer
+    rr.init("rerun_deco2_stream", spawn=True)
 
     rclpy.init(args=sys.argv)
     node = RerunTFStreamer()
