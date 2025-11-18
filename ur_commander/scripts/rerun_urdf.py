@@ -6,8 +6,9 @@ from typing import TYPE_CHECKING, cast
 from urllib.parse import urlparse
 
 import numpy as np
-import rerun as rr  # pip install rerun-sdk
+import rerun as rr
 from ament_index_python.packages import get_package_share_directory
+from sympy import false  # pip install rerun-sdk
 from yourdfpy import URDF
 
 if TYPE_CHECKING:
@@ -30,61 +31,54 @@ def load_urdf_from_msg(msg: String) -> URDF:
 
 
 def log_scene(
-    scene: trimesh.Scene, node: str, path: str | None = None, static: bool = False
+    scene: "trimesh.Scene", node: str, path: str | None = None, static: bool = False
 ) -> None:
-    """Log a trimesh scene to rerun."""
+    """
+    Recursively log a trimesh.Scene to Rerun.
+    Logs both transforms and meshes for every node in the URDF scene.
+    """
+
     path = path + "/" + node if path else node
 
+    # Get parent and children in the scene graph
     parent = scene.graph.transforms.parents.get(node)
     children = scene.graph.transforms.children.get(node)
 
+    # Get transform and geometry associated with this node
     node_data = scene.graph.get(frame_to=node, frame_from=parent)
-
     if node_data:
-        # Log the transform between this node and its direct parent (if it has one!).
-        if parent:
-            world_from_mesh = node_data[0]
-            rr.log(
-                path,
-                rr.Transform3D(
-                    translation=world_from_mesh[3, 0:3],
-                    mat3x3=world_from_mesh[0:3, 0:3],
-                ),
-                static=static,
-            )
+        world_from_mesh, geom_name = node_data
 
-        # Log this node's mesh, if it has one.
-        mesh = cast("trimesh.Trimesh", scene.geometry.get(node_data[1]))
+        # Log transform for this node (always, even if root)
+        rr.log(
+            path,
+            rr.Transform3D(
+                translation=world_from_mesh[0:3, 3],  # last column
+                mat3x3=world_from_mesh[0:3, 0:3],  # top-left 3x3 rotation
+            ),
+            static=False,
+        )
+
+        # Log mesh if it exists
+        mesh = scene.geometry.get(geom_name)
         if mesh:
-            # If vertex colors are set, use the average color as the albedo factor
-            # for the whole mesh.
-            # If vertex colors are set, use the average color as the albedo factor
-            # for the whole mesh.
-            mean_vertex_color = None
+            # Determine albedo color from vertex colors if available
+            albedo_factor = None
             try:
                 colors = np.mean(mesh.visual.vertex_colors, axis=0)
                 if len(colors) == 4:
-                    mean_vertex_color = np.array(colors) / 255.0
+                    albedo_factor = colors / 255.0
             except Exception:
                 pass
 
-            # If trimesh gives us a single vertex color for the entire mesh, we can interpret that
-            # as an albedo factor for the whole primitive.
-            visual_color = None
-            try:
-                colors = mesh.visual.to_color().vertex_colors
-                if len(colors) == 4:
-                    visual_color = np.array(colors) / 255.0
-            except Exception:
-                pass
-
-            # FIXED: NumPy arrays cannot use `or` because truth value is ambiguous
-            if mean_vertex_color is not None and mean_vertex_color.size > 0:
-                albedo_factor = mean_vertex_color
-            elif visual_color is not None and visual_color.size > 0:
-                albedo_factor = visual_color
-            else:
-                albedo_factor = None
+            if albedo_factor is None:
+                try:
+                    colors = mesh.visual.to_color().vertex_colors
+                    if len(colors) == 4:
+                        albedo_factor = colors / 255.0
+                except Exception:
+                    pass
+            # log the mesh with rotation angles
 
             rr.log(
                 path,
@@ -94,9 +88,10 @@ def log_scene(
                     vertex_normals=mesh.vertex_normals,
                     albedo_factor=albedo_factor,
                 ),
-                static=static,
+                static=True,
             )
 
+    # Recurse on children
     if children:
         for child in children:
             log_scene(scene, child, path, static)
