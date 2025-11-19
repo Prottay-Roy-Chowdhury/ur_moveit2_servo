@@ -22,10 +22,15 @@
     },
     "ruff.lineLength": 100,
     "ruff.lint.select": [
-        "E4", // whitespace
-        "E7", // indentation
-        "E9", // syntax
-        "F" // errors
+        "B", // Black formatting
+        "F", // Fixable errors
+        "W", // Warnings
+        "E", // Errors
+        "C4", // Complexity
+        "I", // Import-related rules
+        "FA",
+        "G",
+
     ],
     // ===== File Explorer =====
     "files.exclude": {
