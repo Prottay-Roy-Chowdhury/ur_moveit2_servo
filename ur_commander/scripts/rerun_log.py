@@ -15,11 +15,12 @@ from image_geometry import PinholeCameraModel
 from numpy.lib.recfunctions import structured_to_unstructured
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
-from rclpy.qos import QoSDurabilityPolicy, QoSProfile
+from rclpy.qos import QoSDurabilityPolicy, QoSProfile, QoSReliabilityPolicy
 from rclpy.time import Duration, Time
 from sensor_msgs.msg import Image, PointCloud2, PointField
 from sensor_msgs_py import point_cloud2
 from std_msgs.msg import String
+from sympy import Q
 from tf2_ros import Buffer, TransformException
 from tf2_ros.transform_listener import TransformListener
 
@@ -68,15 +69,23 @@ class RerunTFStreamer(Node):
             Image,
             "/mechmind/color_image",
             self.img_callback,
-            qos_profile=latching_qos,
+            qos_profile=QoSProfile(
+                depth=1,
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.BEST_EFFORT,
+            ),
             callback_group=self.callback_group,
         )
 
         self.point_cloud_sub = self.create_subscription(
             PointCloud2,
-            "/mechmind/texture_point_cloud",
+            "/mechmind/textured_point_cloud",
             self.point_cloud_callback,
-            qos_profile=latching_qos,
+            qos_profile=QoSProfile(
+                depth=1,
+                durability=QoSDurabilityPolicy.VOLATILE,
+                reliability=QoSReliabilityPolicy.BEST_EFFORT,
+            ),
             callback_group=self.callback_group,
         )
 
@@ -153,6 +162,7 @@ class RerunTFStreamer(Node):
         time = Time.from_msg(pc_msg.header.stamp)
         rr.set_time(timeline="ros_time", timestamp=time.nanoseconds * 1e-9)
 
+        print("Logging point cloud with", pc_msg.width * pc_msg.height, "points")
         pts = point_cloud2.read_points(pc_msg, field_names=["x", "y", "z"], skip_nans=True)
 
         colors = point_cloud2.read_points(pc_msg, field_names=["r", "g", "b"], skip_nans=True)
@@ -166,6 +176,7 @@ class RerunTFStreamer(Node):
                 pts,
                 colors=colors,
             ),
+            static=True,
         )
 
 
