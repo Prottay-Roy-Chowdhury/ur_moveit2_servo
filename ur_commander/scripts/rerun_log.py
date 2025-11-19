@@ -3,18 +3,22 @@ from __future__ import annotations
 
 import sys
 from email.mime import application
+from turtle import color
 
+import cv_bridge
 import numpy as np
 import rclpy
 import rclpy.executors
 import rerun as rr
 import rerun_urdf
-import trimesh
+from image_geometry import PinholeCameraModel
+from numpy.lib.recfunctions import structured_to_unstructured
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile
 from rclpy.time import Duration, Time
-from sensor_msgs.msg import CameraInfo
+from sensor_msgs.msg import Image, PointCloud2, PointField
+from sensor_msgs_py import point_cloud2
 from std_msgs.msg import String
 from tf2_ros import Buffer, TransformException
 from tf2_ros.transform_listener import TransformListener
@@ -32,6 +36,8 @@ class RerunTFStreamer(Node):
         self.callback_group = ReentrantCallbackGroup()
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self, spin_thread=True)
+        self.cv_bridge = cv_bridge.CvBridge()
+        self.model = PinholeCameraModel()
 
         self.path_to_frame = {
             "/robot/urdf/world": "world",
@@ -54,6 +60,22 @@ class RerunTFStreamer(Node):
             String,
             "/robot_description",
             self.urdf_callback,
+            qos_profile=latching_qos,
+            callback_group=self.callback_group,
+        )
+
+        self.img_sub = self.create_subscription(
+            Image,
+            "/mechmind/color_image",
+            self.img_callback,
+            qos_profile=latching_qos,
+            callback_group=self.callback_group,
+        )
+
+        self.point_cloud_sub = self.create_subscription(
+            PointCloud2,
+            "/mechmind/texture_point_cloud",
+            self.point_cloud_callback,
             qos_profile=latching_qos,
             callback_group=self.callback_group,
         )
@@ -112,6 +134,39 @@ class RerunTFStreamer(Node):
         rr.set_time(timeline="ros_time", timestamp=now.nanoseconds * 1e-9)
         for path in self.path_to_frame.keys():
             self.log_tf_as_transform3d(path, now)
+
+    def img_callback(self, img_msg: Image) -> None:
+        """Log camera image to Rerun."""
+        time = Time.from_msg(img_msg.header.stamp)
+        rr.set_time(timeline="ros_time", timestamp=time.nanoseconds * 1e-9)
+        rr.log(
+            "map/color_image",
+            rr.Image(self.cv_bridge.imgmsg_to_cv2(img_msg, desired_encoding="rgb8")),
+        )
+        # self.log_tf_as_transform3d(
+        #     "/robot/urdf/world/base_link/base_link_inertia/shoulder_link/upper_arm_link/forearm_link/wrist_1_link/wrist_2_link/wrist_3_link/flange/tool0/camera_color_optical_frame",
+        #     time,
+        # )
+
+    def point_cloud_callback(self, pc_msg: PointCloud2) -> None:
+        """Log point cloud to Rerun."""
+        time = Time.from_msg(pc_msg.header.stamp)
+        rr.set_time(timeline="ros_time", timestamp=time.nanoseconds * 1e-9)
+
+        pts = point_cloud2.read_points(pc_msg, field_names=["x", "y", "z"], skip_nans=True)
+
+        colors = point_cloud2.read_points(pc_msg, field_names=["r", "g", "b"], skip_nans=True)
+
+        pts = structured_to_unstructured(pts)
+        colors = structured_to_unstructured(colors)
+
+        rr.log(
+            "map/point_cloud",
+            rr.Points3D(
+                pts,
+                colors=colors,
+            ),
+        )
 
 
 # ---------------------------------------------------------------------------

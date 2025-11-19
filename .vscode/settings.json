@@ -4,7 +4,7 @@
     "python.defaultInterpreterPath": "/usr/bin/python3",
     // ROS Python paths
     "python.analysis.extraPaths": [
-        "/opt/ros/${config:ros.distro}/lib/python3.10/site-packages"
+        "/opt/ros/humble/lib/python3.10/site-packages"
     ],
     "python.analysis.autoImportCompletions": true,
     "python.analysis.autoSearchPaths": true,
