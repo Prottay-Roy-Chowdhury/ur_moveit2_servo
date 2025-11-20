@@ -9,7 +9,7 @@
 
   <!-- Include base robot definition -->
   <xacro:include filename="$(find ur_description)/urdf/ur.urdf.xacro"/>
-
+  
   <link name="tcp_ee"/>
 
   <joint name="deco2_ee" type="fixed">

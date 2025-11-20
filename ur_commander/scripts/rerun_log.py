@@ -13,9 +13,6 @@ import rerun as rr
 import rerun.blueprint as rrb
 import rerun_urdf
 from commander_py import commander_utils
-from flask import blueprints
-from flask.cli import F
-from flask.config import T
 from numpy.lib.recfunctions import structured_to_unstructured
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
@@ -118,8 +115,8 @@ class RerunTFStreamer(Node):
             rr.Pinhole(
                 width=1920,
                 height=1200,
-                focal_length=[1727.4641025602748, 1727.4586926701952],  # fx, fy
-                principal_point=[655.8180825729554, 516.6306500606158],  # cx, cy
+                focal_length=[2419.304814724099, 2419.3003402251647],  # fx, fy
+                principal_point=[967.438095439022, 597.8902870014496],  # cx, cy
             ),
             static=True,
         )
@@ -208,16 +205,13 @@ class RerunTFStreamer(Node):
 
         try:
             tf_to_base = self.tf_buffer.lookup_transform(
-                "base_link",
+                "base",
                 "camera_color_optical_frame",
                 rclpy.time.Time(),
                 timeout=Duration(seconds=0.1),
             )
 
-            xyz = commander_utils.apply_transform_to_points(
-                xyz,
-                tf_to_base.transform,
-            )
+            xyz = commander_utils.apply_transform_to_points(xyz, tf_to_base.transform)
         except TransformException as ex:
             print(f"Failed to get transform: {ex}")
 
@@ -245,22 +239,32 @@ class RerunTFStreamer(Node):
 def main():
     rr.init("rerun_robot_stream", spawn=True)
 
-    line_grid = rrb.archetypes.LineGrid3D()
-    line_grid.spacing = 0.1
-
-    rrb.SelectionPanel(state=rrb.PanelStateLike("collapsed"))
-
-    blueprint = rrb.Vertical(
-        rrb.Spatial3DView(
-            name="Robot View",
-            origin="/",
-            line_grid=line_grid,
-        ),
+    blueprint = rrb.Blueprint(
         rrb.Horizontal(
-            rrb.TextDocumentView(name="Description", origin="/description"),
-            rrb.Spatial2DView(name="Camera View", origin="map/camera_frame/image"),
+            rrb.Spatial3DView(
+                name="Robot View",
+                origin="/",
+                eye_controls=rrb.EyeControls3D(
+                    position=(0.69586, 3.5822, 1.1239),
+                    look_target=(0.2476, 0.32133, 0.87035),
+                    eye_up=(0.0, 0.0, 1.0),
+                    spin_speed=0.0,
+                    kind=rrb.Eye3DKind.Orbital,
+                    speed=3.3388,
+                ),
+                line_grid=rrb.archetypes.LineGrid3D(
+                    visible=True, spacing=0.1, plane=rr.components.Plane3D.XY
+                ),
+            ),
+            rrb.Vertical(
+                rrb.Spatial2DView(name="Camera View", origin="map/camera_frame/image"),
+                rrb.TextDocumentView(name="Description", origin="/description"),
+            ),
+            column_shares=[3, 2],
         ),
-        row_shares=[3, 2],
+        rrb.BlueprintPanel(state="hidden"),
+        rrb.SelectionPanel(state="hidden"),
+        rrb.TimePanel(state="expanded"),
     )
 
     rr.send_blueprint(blueprint)
