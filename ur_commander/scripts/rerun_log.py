@@ -2,27 +2,42 @@
 from __future__ import annotations
 
 import sys
-from email.mime import application
-from turtle import color
+from typing import Final
 
 import cv_bridge
 import numpy as np
 import rclpy
 import rclpy.executors
+import rclpy.time
 import rerun as rr
+import rerun.blueprint as rrb
 import rerun_urdf
-from image_geometry import PinholeCameraModel
+from commander_py import commander_utils
+from flask import blueprints
+from flask.cli import F
+from flask.config import T
 from numpy.lib.recfunctions import structured_to_unstructured
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy, QoSProfile, QoSReliabilityPolicy
 from rclpy.time import Duration, Time
-from sensor_msgs.msg import Image, PointCloud2, PointField
+from sensor_msgs.msg import Image, PointCloud2
 from sensor_msgs_py import point_cloud2
 from std_msgs.msg import String
-from sympy import Q
 from tf2_ros import Buffer, TransformException
 from tf2_ros.transform_listener import TransformListener
+
+DESCRIPTION = """
+# UR10e + Mech-Mind Structured Light Sensor Example
+This example demonstrates logging data from a UR10e robot equipped with a Mech-Mind structured light sensor.
+We use Rerun to visualize:
+- The robot's trajectory and end-effector frames
+- Camera intrinsics of the Mech-Mind sensor
+- The resulting 3D point cloud
+- Synchronized RGB images from the camera
+""".strip()
+
+FILTER_MIN_VISIBLE: Final = 500
 
 
 class RerunTFStreamer(Node):
@@ -38,7 +53,6 @@ class RerunTFStreamer(Node):
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self, spin_thread=True)
         self.cv_bridge = cv_bridge.CvBridge()
-        self.model = PinholeCameraModel()
 
         self.path_to_frame = {
             "/robot/urdf/world": "world",
@@ -52,9 +66,9 @@ class RerunTFStreamer(Node):
             "/robot/urdf/world/base_link/base_link_inertia/shoulder_link/upper_arm_link/forearm_link/wrist_1_link/wrist_2_link/wrist_3_link": "wrist_3_link",
             "/robot/urdf/world/base_link/base_link_inertia/shoulder_link/upper_arm_link/forearm_link/wrist_1_link/wrist_2_link/wrist_3_link/flange": "flange",
             "/robot/urdf/world/base_link/base_link_inertia/shoulder_link/upper_arm_link/forearm_link/wrist_1_link/wrist_2_link/wrist_3_link/flange/tool0": "tool0",
-            "/robot/urdf/world/base_link/base_link_inertia/shoulder_link/upper_arm_link/forearm_link/wrist_1_link/wrist_2_link/wrist_3_link/flange/tool0/camera_color_optical_frame": "camera_color_optical_frame",
-            "/robot/urdf/world/base_link/base_link_inertia/shoulder_link/upper_arm_link/forearm_link/wrist_1_link/wrist_2_link/wrist_3_link/flange/tool0/tcp_ee": "tcp_ee",
-            "/robot/urdf/world/base_link/base_link_inertia/shoulder_link/upper_arm_link/forearm_link/wrist_1_link/wrist_2_link/wrist_3_link/flange/tool0/tcp_ee/suction_cup_frame": "suction_cup_frame",
+            # Add more mappings as needed
+            "/map/camera_frame": "camera_color_optical_frame",
+            "map/tcp_frame": "tcp_ee",
         }
 
         self.urdf_sub = self.create_subscription(
@@ -89,11 +103,30 @@ class RerunTFStreamer(Node):
             callback_group=self.callback_group,
         )
 
-        self.create_timer(0.1, self.timer_callback, callback_group=self.callback_group)
+        self.create_timer(0.05, self.timer_callback, callback_group=self.callback_group)
+
+        rr.log("/", rr.ViewCoordinates.RIGHT_HAND_Z_UP, static=True)
 
         rr.log(
             "map/box",
             rr.Boxes3D(half_sizes=[1, 1, 1], centers=[0, 0, 1], colors=[255, 255, 255, 255]),
+            static=True,
+        )
+
+        rr.log(
+            "map/camera_frame/image",
+            rr.Pinhole(
+                width=1920,
+                height=1200,
+                focal_length=[1727.4641025602748, 1727.4586926701952],  # fx, fy
+                principal_point=[655.8180825729554, 516.6306500606158],  # cx, cy
+            ),
+            static=True,
+        )
+
+        rr.log(
+            "/description",
+            rr.TextDocument(DESCRIPTION, media_type=rr.MediaType.MARKDOWN),
             static=True,
         )
 
@@ -117,7 +150,7 @@ class RerunTFStreamer(Node):
 
         try:
             tf = self.tf_buffer.lookup_transform(
-                parent_frame, child_frame, time, timeout=Duration(seconds=0.1)
+                parent_frame, child_frame, rclpy.time.Time(), timeout=Duration(seconds=0.1)
             )
             t = tf.transform.translation
             q = tf.transform.rotation
@@ -139,23 +172,20 @@ class RerunTFStreamer(Node):
 
     def timer_callback(self):
         """Stream TF transforms every tick."""
-        now = self.get_clock().now()
-        rr.set_time(timeline="ros_time", timestamp=now.nanoseconds * 1e-9)
+        # now = self.get_clock().now()
+        # rr.set_time(timeline="ros_time", timestamp=now.nanoseconds * 1e-9)
         for path in self.path_to_frame.keys():
-            self.log_tf_as_transform3d(path, now)
+            self.log_tf_as_transform3d(path, rclpy.time.Time())
 
     def img_callback(self, img_msg: Image) -> None:
         """Log camera image to Rerun."""
         time = Time.from_msg(img_msg.header.stamp)
         rr.set_time(timeline="ros_time", timestamp=time.nanoseconds * 1e-9)
+        print("Logging image of size", img_msg.width, "x", img_msg.height)
         rr.log(
-            "map/color_image",
+            "map/camera_frame/image",
             rr.Image(self.cv_bridge.imgmsg_to_cv2(img_msg, desired_encoding="rgb8")),
         )
-        # self.log_tf_as_transform3d(
-        #     "/robot/urdf/world/base_link/base_link_inertia/shoulder_link/upper_arm_link/forearm_link/wrist_1_link/wrist_2_link/wrist_3_link/flange/tool0/camera_color_optical_frame",
-        #     time,
-        # )
 
     def point_cloud_callback(self, pc_msg: PointCloud2) -> None:
         """Log point cloud to Rerun."""
@@ -163,21 +193,50 @@ class RerunTFStreamer(Node):
         rr.set_time(timeline="ros_time", timestamp=time.nanoseconds * 1e-9)
 
         print("Logging point cloud with", pc_msg.width * pc_msg.height, "points")
-        pts = point_cloud2.read_points(pc_msg, field_names=["x", "y", "z"], skip_nans=True)
 
-        colors = point_cloud2.read_points(pc_msg, field_names=["r", "g", "b"], skip_nans=True)
+        print([f.name for f in pc_msg.fields])
 
-        pts = structured_to_unstructured(pts)
-        colors = structured_to_unstructured(colors)
+        pts = list(
+            point_cloud2.read_points(pc_msg, field_names=["x", "y", "z", "rgb"], skip_nans=False)
+        )
+        pts = np.array(pts)
+
+        xyz = structured_to_unstructured(pts[["x", "y", "z"]])
+
+        rgb_float = pts["rgb"]
+        rgb = self.unpack_rgb_float(rgb_float).astype(np.uint8)
+
+        try:
+            tf_to_base = self.tf_buffer.lookup_transform(
+                "base_link",
+                "camera_color_optical_frame",
+                rclpy.time.Time(),
+                timeout=Duration(seconds=0.1),
+            )
+
+            xyz = commander_utils.apply_transform_to_points(
+                xyz,
+                tf_to_base.transform,
+            )
+        except TransformException as ex:
+            print(f"Failed to get transform: {ex}")
 
         rr.log(
             "map/point_cloud",
             rr.Points3D(
-                pts,
-                colors=colors,
+                xyz,
+                colors=rgb,
             ),
-            static=True,
+            static=False,
         )
+
+    @staticmethod
+    def unpack_rgb_float(rgb_float):
+        rgb_int = rgb_float.view(np.uint32)
+        r = (rgb_int >> 16) & 255
+        g = (rgb_int >> 8) & 255
+        b = rgb_int & 255
+        return np.stack([r, g, b], axis=-1)
 
 
 # ---------------------------------------------------------------------------
@@ -185,6 +244,26 @@ class RerunTFStreamer(Node):
 
 def main():
     rr.init("rerun_robot_stream", spawn=True)
+
+    line_grid = rrb.archetypes.LineGrid3D()
+    line_grid.spacing = 0.1
+
+    rrb.SelectionPanel(state=rrb.PanelStateLike("collapsed"))
+
+    blueprint = rrb.Vertical(
+        rrb.Spatial3DView(
+            name="Robot View",
+            origin="/",
+            line_grid=line_grid,
+        ),
+        rrb.Horizontal(
+            rrb.TextDocumentView(name="Description", origin="/description"),
+            rrb.Spatial2DView(name="Camera View", origin="map/camera_frame/image"),
+        ),
+        row_shares=[3, 2],
+    )
+
+    rr.send_blueprint(blueprint)
 
     rclpy.init(args=sys.argv)
     node = RerunTFStreamer()
