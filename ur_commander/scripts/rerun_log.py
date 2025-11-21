@@ -111,12 +111,23 @@ class RerunTFStreamer(Node):
         )
 
         rr.log(
+            "map/world",
+            rr.Transform3D(
+                translation=[0, 0, 0],
+                rotation=rr.Quaternion(xyzw=[0, 0, 0, 1]),
+                axis_length=0.4,
+            ),
+            static=True,
+        )
+
+        rr.log(
             "map/camera_frame/image",
             rr.Pinhole(
                 width=1920,
                 height=1200,
                 focal_length=[2419.304814724099, 2419.3003402251647],  # fx, fy
                 principal_point=[967.438095439022, 597.8902870014496],  # cx, cy
+                image_plane_distance=0.3,
             ),
             static=True,
         )
@@ -151,12 +162,33 @@ class RerunTFStreamer(Node):
             )
             t = tf.transform.translation
             q = tf.transform.rotation
-            rr.log(
-                path,
-                rr.Transform3D(
-                    translation=[t.x, t.y, t.z], rotation=rr.Quaternion(xyzw=[q.x, q.y, q.z, q.w])
-                ),
-            )
+
+            # if path == "robot/urdf/world":
+            #     rr.log(
+            #         path,
+            #         rr.Transform3D(
+            #             translation=[t.x, t.y, t.z],
+            #             rotation=rr.Quaternion(xyzw=[q.x, q.y, q.z, q.w]),
+            #             axis_length=0.4,
+            #         ),
+            #     )
+            if path.endswith("tcp_frame") or path.endswith("camera_frame"):
+                rr.log(
+                    path,
+                    rr.Transform3D(
+                        translation=[t.x, t.y, t.z],
+                        rotation=rr.Quaternion(xyzw=[q.x, q.y, q.z, q.w]),
+                        axis_length=0.15,
+                    ),
+                )
+            else:
+                rr.log(
+                    path,
+                    rr.Transform3D(
+                        translation=[t.x, t.y, t.z],
+                        rotation=rr.Quaternion(xyzw=[q.x, q.y, q.z, q.w]),
+                    ),
+                )
 
         except TransformException as ex:
             print(f"Failed to get transform: {ex}")
@@ -245,8 +277,8 @@ def main():
                 name="Robot View",
                 origin="/",
                 eye_controls=rrb.EyeControls3D(
-                    position=(0.69586, 3.5822, 1.1239),
-                    look_target=(0.2476, 0.32133, 0.87035),
+                    position=(0.02255, -3.6032, 1.1292),
+                    look_target=(0.08612, 0.30224, 0.98864),
                     eye_up=(0.0, 0.0, 1.0),
                     spin_speed=0.0,
                     kind=rrb.Eye3DKind.Orbital,
