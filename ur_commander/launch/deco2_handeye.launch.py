@@ -108,7 +108,7 @@ def generate_launch_description():
         prefix="xterm -e",
         parameters=[
             {"save_file": True},
-            {"camera_ip": "192.168.56.100"},  # change to your camera ip
+            {"camera_ip": "192.168.56.100"},  # change to your came ip
             {"user_external_intri": False},
             {"fx": 1727.4641025602748},
             {"fy": 1727.4586926701952},

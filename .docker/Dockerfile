@@ -112,6 +112,10 @@ RUN pip3 install setuptools==79.0.1
 WORKDIR /dev_ws
 FROM build AS bash
 
+RUN sed -i \
+    's|<origin xyz="0 0 0" rpy="0 0 0"[ ]*/>|<origin xyz="0 0 0" rpy="0 0 -${pi}" />|' \
+    /opt/ros/humble/share/ur_description/urdf/ur.urdf.xacro
+
 # RUN sed -i 's/\(\s*\)_Bool,/\1BoolType,/' /opt/mech-mind/mech-eye-sdk/include/Parameter.h
 
 
