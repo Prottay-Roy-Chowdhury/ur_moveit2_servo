@@ -1,8 +1,8 @@
 
-echo -e "Building image deco2:latest"
+echo -e "Building image deco2_mosaic:latest"
 
 DOCKER_BUILDKIT=1 \
 docker build --pull --rm -f ./.docker/Dockerfile \
 --build-arg BUILDKIT_INLINE_CACHE=1 \
 --target bash \
---tag deco2:latest .
+--tag deco2_mosaic:latest .

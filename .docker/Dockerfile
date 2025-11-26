@@ -24,6 +24,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends\
     unzip \
     xterm \
     zsh \
+    net-tools \
     zenity \
     python3-colcon-common-extensions \
     python3-colcon-mixin \
