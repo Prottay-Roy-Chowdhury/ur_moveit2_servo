@@ -109,22 +109,20 @@ RUN mkdir -p /dev_ws/src
 WORKDIR /dev_ws/src 
 
 COPY . /dev_ws/src
-RUN pip3 install setuptools==79.0.1
+
+# Remove git folder when pushing to docker hub
+# RUN rm -rf /dev_ws/src/.git
+
+RUN pip3 install setuptools==79.0.1 
 WORKDIR /dev_ws
 FROM build AS bash
 
 RUN sed -i 's|<origin xyz="0 0 0" rpy="0 0 0" /> *<!-- position robot in the world -->|<origin xyz="0 0 0" rpy="0 0 -3.141592653589793" />|' /opt/ros/humble/share/ur_description/urdf/ur.urdf.xacro
 
-
-
 # RUN sed -i 's/\(\s*\)_Bool,/\1BoolType,/' /opt/mech-mind/mech-eye-sdk/include/Parameter.h
-
-
 
 RUN ["/bin/bash", "-c", "source /opt/ros/$ROS_DISTRO/setup.bash && \
      colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release"] 
-
-
 RUN ["/bin/bash", "-c", "cp /dev_ws/src/.docker/setup.bash /dev_ws/setup.bash && chmod 777 /dev_ws/setup.bash"]
 RUN ["/bin/bash", "-c", "cp /dev_ws/src/.docker/entrypoint.bash / && chmod 777 /entrypoint.bash"]
 
