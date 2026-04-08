@@ -1,4 +1,4 @@
-# deco2_robotic_mosaic
+# ur_moveit2_servo
 
 ## Before Installation
 
