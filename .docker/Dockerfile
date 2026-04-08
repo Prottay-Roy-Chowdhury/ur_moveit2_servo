@@ -94,12 +94,12 @@ RUN echo "* - nice -15" >> /etc/security/limits.conf
 
 FROM base AS camera
 
-RUN curl -ssL -o Mech-Eye_API_2.5.4_amd64.zip "https://cdn-obj.azureedge.net/community/community_downloads/community_downloads/Mech-Eye_SDK_2.5.4/Mech-Eye_API_2.5.4_amd64.zip?se=4763-11-20T08%3A24%3A00Z&sp=r&sv=2023-11-03&sr=b&sig=wNdeQ636LKQSaiUUcaMKna0blQQihsjfzPbEwB4FYI0%3D" \
-    && unzip Mech-Eye_API_2.5.4_amd64.zip \
-    && rm Mech-Eye_API_2.5.4_amd64.zip \
-    && dpkg -i 'Mech-Eye_API_2.5.4_amd64.deb' \
+RUN curl -ssL -o Mech-Eye_API_2.5.1_amd64.zip "https://cdn-obj.azureedge.net/community/community_downloads/community_downloads/Mech-Eye_API_2.5.1_amd64.zip?se=4763-06-18T07%3A27%3A08Z&sp=r&sv=2023-11-03&sr=b&sig=T%2BnKM9Q6gze19THtJQmOo/aaJmi2CzRoYB6L1XYmoHg%3D" \
+    && unzip Mech-Eye_API_2.5.1_amd64.zip \
+    && rm Mech-Eye_API_2.5.1_amd64.zip \
+    && dpkg -i 'Mech-Eye_API_2.5.1_amd64.deb' \
     && dpkg -l | grep mecheyeapi \
-    && rm -rf 'Mech-Eye_API_2.5.4_amd64.deb'
+    && rm -rf 'Mech-Eye_API_2.5.1_amd64.deb'
 
 
 RUN pip3 install --no-cache-dir open3d --ignore-installed PyYAML
