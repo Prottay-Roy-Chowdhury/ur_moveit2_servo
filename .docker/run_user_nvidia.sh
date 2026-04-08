@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-echo -e "Starting up deco2_mosaic container \n >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+echo -e "Starting up ur_moveit2_servo container \n >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
 echo -e "This container will access to the users home directory and log in as the user with their password and x sever access.\nYou will not own the workspace though, use sudo chown -R $USER /dev_ws"
 echo -e "Source the workspace with source devel/setup.zsh"
 
@@ -20,4 +20,4 @@ docker run -it --privileged \
     --net=host \
     --runtime=nvidia \
     --gpus 'all,"capabilities=compute,display,graphics,utility,video"' \
-    deco2_mosaic:latest
+    ur_moveit2_servo:latest
