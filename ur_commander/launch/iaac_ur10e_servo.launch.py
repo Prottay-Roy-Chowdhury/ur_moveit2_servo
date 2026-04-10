@@ -1,18 +1,15 @@
-"""Launch file for IAAC UR10e robot with MoveIt, Servo and visualization nodes."""
+"""Launch file for IAAC UR10e robot with MoveIt, Servo, vision and visualization nodes."""
 
 import os
 
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
     IncludeLaunchDescription,
     GroupAction,
-    ExecuteProcess,
-    RegisterEventHandler,
-    TimerAction,
 )
 from launch.conditions import IfCondition, UnlessCondition
-from launch.event_handlers import OnProcessStart
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.substitutions import FindPackageShare
@@ -41,12 +38,22 @@ def generate_launch_description():
             default_value="deco2_mosaic.xacro",
             description="URDF description file of the robot.",
         ),
+        DeclareLaunchArgument(
+            "initial_positions_file",
+            default_value=os.path.join(
+                get_package_share_directory("iaac_ur_description"),
+                "config",
+                "initial_positions.yaml",
+            ),
+            description="YAML file with initial joint positions for fake hardware",
+        ),
     ]
 
     sim = LaunchConfiguration("sim")
     launch_servo = LaunchConfiguration("launch_servo")
     ur_description_package = LaunchConfiguration("description_package")
     description_file = LaunchConfiguration("description_file")
+    initial_positions_file = LaunchConfiguration("initial_positions_file")
 
     ur_bringup_launch_file = os.path.join(
         FindPackageShare("ur_robot_driver").find("ur_robot_driver"),
@@ -60,7 +67,6 @@ def generate_launch_description():
         "ur_moveit.launch.py",
     )
 
-    # Start with scaled controller on startup
     sim_arguments = {
         "initial_joint_controller": "scaled_joint_trajectory_controller",
         "robot_ip": "xxx.xxx.xxx.xxx",
@@ -70,6 +76,7 @@ def generate_launch_description():
         "launch_rviz": "false",
         "description_package": ur_description_package,
         "description_file": description_file,
+        "initial_positions_file": initial_positions_file,
     }
 
     real_robot_arguments = {
@@ -118,69 +125,11 @@ def generate_launch_description():
         output="screen",
     )
 
-    # Deactivate scaled_joint_trajectory_controller
-    unspawn_scaled = Node(
-        package="controller_manager",
-        executable="unspawner",
-        arguments=[
-            "scaled_joint_trajectory_controller",
-            "--controller-manager",
-            "/controller_manager",
-        ],
+    hand_to_twist_node = Node(
+        package="ur_servo_vision",
+        executable="hand_to_twist",
+        name="hand_to_twist",
         output="screen",
-    )
-
-    # Activate forward_position_controller
-    spawn_forward_position = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=[
-            "forward_position_controller",
-            "--controller-manager",
-            "/controller_manager",
-        ],
-        output="screen",
-    )
-
-    # Start Servo after controllers have had time to settle
-    start_servo = ExecuteProcess(
-        cmd=[
-            "ros2",
-            "service",
-            "call",
-            "/servo_node/start_servo",
-            "std_srvs/srv/Trigger",
-            "{}",
-        ],
-        shell=False,
-        output="screen",
-    )
-
-    # # Optional: switch Servo to Twist command mode
-    # switch_servo_to_twist = ExecuteProcess(
-    #     cmd=[
-    #         "ros2",
-    #         "service",
-    #         "call",
-    #         "/servo_node/switch_command_type",
-    #         "moveit_msgs/srv/ServoCommandType",
-    #         "{command_type: 1}",
-    #     ],
-    #     shell=False,
-    #     output="screen",
-    # )
-
-    # Chain the steps after MoveIt starts
-    controller_switch_sequence = RegisterEventHandler(
-        OnProcessStart(
-            target_action=visualize_pose_srv_node,
-            on_start=[
-                TimerAction(period=3.0, actions=[unspawn_scaled]),
-                TimerAction(period=5.0, actions=[spawn_forward_position]),
-                TimerAction(period=7.0, actions=[start_servo]),
-                # TimerAction(period=8.0, actions=[switch_servo_to_twist]),
-            ],
-        )
     )
 
     return LaunchDescription(
@@ -189,6 +138,6 @@ def generate_launch_description():
             ur_bringup_launch,
             moveit_launch,
             visualize_pose_srv_node,
-            controller_switch_sequence,
+            hand_to_twist_node,
         ]
     )
