@@ -53,7 +53,7 @@ class HandToTwistNode(Node):
         self.frame_count = 0
         self.timer = self.create_timer(1.0 / 20.0, self.timer_callback)
 
-        self.max_linear_speed = 0.03
+        self.max_linear_speed = 0.09
         self.deadband = 0.08
         self.alpha = 0.25
 
