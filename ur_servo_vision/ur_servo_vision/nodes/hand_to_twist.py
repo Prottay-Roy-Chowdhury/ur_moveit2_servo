@@ -2,9 +2,11 @@
 
 import math
 import os
+from typing import List, Tuple
 
 import cv2
 import mediapipe as mp
+import numpy as np
 import rclpy
 from ament_index_python.packages import get_package_share_directory
 from geometry_msgs.msg import TwistStamped
@@ -53,36 +55,109 @@ class HandToTwistNode(Node):
         self.frame_count = 0
         self.timer = self.create_timer(1.0 / 20.0, self.timer_callback)
 
-        self.max_linear_speed = 0.09
-        self.deadband = 0.08
-        self.alpha = 0.25
+        # Linear motion tuning
+        self.max_linear_speed_x = 0.05
+        self.max_linear_speed_y = 0.04
+        self.max_linear_speed_z = 0.05
 
-        self.filtered_x = 0.0
-        self.filtered_y = 0.0
-        self.filtered_z = 0.0
+        # Angular motion tuning
+        self.max_angular_speed_x = 0.03
+        self.max_angular_speed_y = 0.03
+        self.max_angular_speed_z = 0.03
+
+        self.deadband_xy = 0.08
+        self.deadband_area = 0.10
+        self.alpha = 0.30
+
+        # Area calibration
+        self.reference_area = None
+        self.min_valid_radius_px = 25.0
+
+        self.filtered_lin_x = 0.0
+        self.filtered_lin_y = 0.0
+        self.filtered_lin_z = 0.0
+
+        self.filtered_ang_x = 0.0
+        self.filtered_ang_y = 0.0
+        self.filtered_ang_z = 0.0
 
         self.get_logger().info("hand_to_twist node started")
 
-    def apply_deadband(self, value: float) -> float:
-        return 0.0 if abs(value) < self.deadband else value
+    def apply_deadband(self, value: float, threshold: float) -> float:
+        return 0.0 if abs(value) < threshold else value
 
     def low_pass(self, previous: float, current: float) -> float:
         return self.alpha * current + (1.0 - self.alpha) * previous
 
-    def publish_twist(self, vx: float, vy: float, vz: float):
+    def publish_twist(
+        self,
+        vx: float,
+        vy: float,
+        vz: float,
+        wx: float = 0.0,
+        wy: float = 0.0,
+        wz: float = 0.0,
+    ):
         msg = TwistStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = "tool0"
+        msg.header.frame_id = "base_link"
         msg.twist.linear.x = float(vx)
         msg.twist.linear.y = float(vy)
         msg.twist.linear.z = float(vz)
-        msg.twist.angular.x = 0.0
-        msg.twist.angular.y = 0.0
-        msg.twist.angular.z = 0.0
+        msg.twist.angular.x = float(wx)
+        msg.twist.angular.y = float(wy)
+        msg.twist.angular.z = float(wz)
         self.publisher_.publish(msg)
 
     def publish_zero(self):
-        self.publish_twist(0.0, 0.0, 0.0)
+        self.publish_twist(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+
+    def landmarks_to_pixels(
+        self, hand_landmarks, width: int, height: int
+    ) -> List[Tuple[int, int]]:
+        pts = []
+        for lm in hand_landmarks:
+            px = int(lm.x * width)
+            py = int(lm.y * height)
+            pts.append((px, py))
+        return pts
+
+    def is_open_palm(self, hand_landmarks) -> bool:
+        finger_pairs = [
+            (8, 6),
+            (12, 10),
+            (16, 14),
+            (20, 18),
+        ]
+
+        extended_count = 0
+        for tip_idx, pip_idx in finger_pairs:
+            if hand_landmarks[tip_idx].y < hand_landmarks[pip_idx].y:
+                extended_count += 1
+
+        return extended_count >= 3
+
+    def is_fist(self, hand_landmarks) -> bool:
+        finger_pairs = [
+            (8, 6),
+            (12, 10),
+            (16, 14),
+            (20, 18),
+        ]
+
+        folded_count = 0
+        for tip_idx, pip_idx in finger_pairs:
+            if hand_landmarks[tip_idx].y > hand_landmarks[pip_idx].y:
+                folded_count += 1
+
+        return folded_count >= 3
+
+    def compute_hand_circle(
+        self, points: List[Tuple[int, int]]
+    ) -> Tuple[Tuple[float, float], float]:
+        pts_np = np.array(points, dtype=np.int32)
+        (cx, cy), radius = cv2.minEnclosingCircle(pts_np)
+        return (cx, cy), radius
 
     def timer_callback(self):
         ok, frame = self.cap.read()
@@ -93,6 +168,7 @@ class HandToTwistNode(Node):
 
         frame = cv2.flip(frame, 1)
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        h, w, _ = frame.shape
 
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
         timestamp_ms = int(self.frame_count * 50)
@@ -107,45 +183,138 @@ class HandToTwistNode(Node):
             return
 
         hand = result.hand_landmarks[0]
+        points_px = self.landmarks_to_pixels(hand, w, h)
+        (cx, cy), radius = self.compute_hand_circle(points_px)
 
-        wrist = hand[0]
-        index_tip = hand[8]
-        thumb_tip = hand[4]
+        if radius < self.min_valid_radius_px:
+            self.publish_zero()
+            cv2.imshow("hand_to_twist", frame)
+            cv2.waitKey(1)
+            return
 
-        # Image-centered offsets
-        # MediaPipe coordinates are normalized: x,y in [0,1]
-        x_offset = index_tip.x - 0.5
-        y_offset = index_tip.y - 0.5
+        area = math.pi * radius * radius
 
-        # Simple pinch distance as z control proxy
-        pinch_distance = math.sqrt(
-            (index_tip.x - thumb_tip.x) ** 2 +
-            (index_tip.y - thumb_tip.y) ** 2
+        if self.reference_area is None:
+            self.reference_area = area
+            self.get_logger().info(
+                f"Reference hand area initialized: {self.reference_area:.1f}"
+            )
+
+        x_offset = (cx - (w / 2.0)) / (w / 2.0)
+        z_offset = ((h / 2.0) - cy) / (h / 2.0)
+        area_ratio = (area - self.reference_area) / self.reference_area
+
+        raw_x = clamp(-x_offset, -1.0, 1.0)
+        raw_y = clamp(area_ratio * 2.0, -1.0, 1.0)
+        raw_z = clamp(z_offset, -1.0, 1.0)
+
+        raw_x = self.apply_deadband(raw_x, self.deadband_xy)
+        raw_y = self.apply_deadband(raw_y, self.deadband_area)
+        raw_z = self.apply_deadband(raw_z, self.deadband_xy)
+
+        mode_text = "STOP"
+
+        if self.is_open_palm(hand):
+            vx = raw_x * self.max_linear_speed_x
+            vy = raw_y * self.max_linear_speed_y
+            vz = raw_z * self.max_linear_speed_z
+
+            self.filtered_lin_x = self.low_pass(self.filtered_lin_x, vx)
+            self.filtered_lin_y = self.low_pass(self.filtered_lin_y, vy)
+            self.filtered_lin_z = self.low_pass(self.filtered_lin_z, vz)
+
+            self.filtered_ang_x = self.low_pass(self.filtered_ang_x, 0.0)
+            self.filtered_ang_y = self.low_pass(self.filtered_ang_y, 0.0)
+            self.filtered_ang_z = self.low_pass(self.filtered_ang_z, 0.0)
+
+            self.publish_twist(
+                self.filtered_lin_x,
+                self.filtered_lin_y,
+                self.filtered_lin_z,
+                0.0,
+                0.0,
+                0.0,
+            )
+            mode_text = "OPEN PALM -> LINEAR"
+
+        elif self.is_fist(hand):
+            wx = raw_z * self.max_angular_speed_x
+            wy = raw_y * self.max_angular_speed_y
+            wz = raw_x * self.max_angular_speed_z
+
+            self.filtered_ang_x = self.low_pass(self.filtered_ang_x, wx)
+            self.filtered_ang_y = self.low_pass(self.filtered_ang_y, wy)
+            self.filtered_ang_z = self.low_pass(self.filtered_ang_z, wz)
+
+            self.filtered_lin_x = self.low_pass(self.filtered_lin_x, 0.0)
+            self.filtered_lin_y = self.low_pass(self.filtered_lin_y, 0.0)
+            self.filtered_lin_z = self.low_pass(self.filtered_lin_z, 0.0)
+
+            self.publish_twist(
+                0.0,
+                0.0,
+                0.0,
+                self.filtered_ang_x,
+                self.filtered_ang_y,
+                self.filtered_ang_z,
+            )
+            mode_text = "FIST -> ANGULAR"
+
+        else:
+            self.filtered_lin_x = self.low_pass(self.filtered_lin_x, 0.0)
+            self.filtered_lin_y = self.low_pass(self.filtered_lin_y, 0.0)
+            self.filtered_lin_z = self.low_pass(self.filtered_lin_z, 0.0)
+            self.filtered_ang_x = self.low_pass(self.filtered_ang_x, 0.0)
+            self.filtered_ang_y = self.low_pass(self.filtered_ang_y, 0.0)
+            self.filtered_ang_z = self.low_pass(self.filtered_ang_z, 0.0)
+            self.publish_zero()
+
+        cv2.circle(frame, (int(cx), int(cy)), int(radius), (0, 255, 0), 2)
+        cv2.circle(frame, (int(cx), int(cy)), 6, (0, 255, 255), -1)
+
+        for px, py in points_px:
+            cv2.circle(frame, (px, py), 3, (255, 0, 0), -1)
+
+        cv2.line(frame, (w // 2, 0), (w // 2, h), (150, 150, 150), 1)
+        cv2.line(frame, (0, h // 2), (w, h // 2), (150, 150, 150), 1)
+
+        cv2.putText(
+            frame,
+            mode_text,
+            (20, 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 0) if mode_text != "STOP" else (0, 0, 255),
+            2,
+        )
+        cv2.putText(
+            frame,
+            f"center=({int(cx)}, {int(cy)}) area={area:.0f}",
+            (20, 60),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (0, 255, 0),
+            2,
+        )
+        cv2.putText(
+            frame,
+            f"lin x:{self.filtered_lin_x:+.3f} y:{self.filtered_lin_y:+.3f} z:{self.filtered_lin_z:+.3f}",
+            (20, 90),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (0, 255, 0),
+            2,
+        )
+        cv2.putText(
+            frame,
+            f"ang x:{self.filtered_ang_x:+.3f} y:{self.filtered_ang_y:+.3f} z:{self.filtered_ang_z:+.3f}",
+            (20, 115),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (0, 255, 0),
+            2,
         )
 
-        # Map hand motion to linear twist
-        raw_vx = clamp(-y_offset, -1.0, 1.0)
-        raw_vy = clamp(-x_offset, -1.0, 1.0)
-        raw_vz = clamp((pinch_distance - 0.10) * 2.0, -1.0, 1.0)
-
-        raw_vx = self.apply_deadband(raw_vx)
-        raw_vy = self.apply_deadband(raw_vy)
-        raw_vz = self.apply_deadband(raw_vz)
-
-        vx = raw_vx * self.max_linear_speed
-        vy = raw_vy * self.max_linear_speed
-        vz = raw_vz * self.max_linear_speed
-
-        self.filtered_x = self.low_pass(self.filtered_x, vx)
-        self.filtered_y = self.low_pass(self.filtered_y, vy)
-        self.filtered_z = self.low_pass(self.filtered_z, vz)
-
-        self.publish_twist(self.filtered_x, self.filtered_y, self.filtered_z)
-
-        h, w, _ = frame.shape
-        px = int(index_tip.x * w)
-        py = int(index_tip.y * h)
-        cv2.circle(frame, (px, py), 8, (0, 255, 0), -1)
         cv2.imshow("hand_to_twist", frame)
         cv2.waitKey(1)
 
