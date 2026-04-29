@@ -122,7 +122,7 @@ COPY . /dev_ws/src
 # Remove git folder when pushing to docker hub
 # RUN rm -rf /dev_ws/src/.git
 
-RUN pip3 install setuptools==79.0.1 
+RUN pip3 install "setuptools<66.0.0" wheel
 WORKDIR /dev_ws
 FROM build AS bash
 

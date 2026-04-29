@@ -50,5 +50,10 @@
         "notebook.source.organizeImports": "explicit"
     },
     // ===== CMake =====
-    "cmake.sourceDirectory": "/dev_ws/src/Universal_Robots_ROS2_Driver/ur_calibration"
+    "cmake.sourceDirectory": "/dev_ws/src/Universal_Robots_ROS2_Driver/ur_calibration",
+    "ROS2.distro": "humble",
+    "python.autoComplete.extraPaths": [
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ]
 }

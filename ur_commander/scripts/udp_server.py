@@ -1,37 +1,84 @@
-#!/usr/bin/env python3
-
+import json
 import socket
+
 import rclpy
 from rclpy.node import Node
+from sensor_msgs.msg import JointState
+from tf2_ros import Buffer, TransformListener
 
-class UDPServer(Node):
+
+class TFUDPStreamer(Node):
     def __init__(self):
-        super().__init__('udp_server')
+        super().__init__("tf_udp_streamer")
 
+        # TF listener
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+
+        # Joint state subscriber
+        self.joint_angles = [0.0] * 6  # default 6 DOF
+        self.create_subscription(
+            JointState,
+            "/joint_states",
+            self.joint_callback,
+            10,
+        )
+
+        # UDP setup
+        self.udp_ip = "192.168.1.44"
+        self.udp_port = 5012
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sock.bind(('0.0.0.0', 5005))
 
-        self.timer = self.create_timer(0.01, self.receive_udp)
-        self.get_logger().info('UDP server listening on port 5005')
+        # Timer
+        self.timer = self.create_timer(0.05, self.timer_callback)
 
-    def receive_udp(self):
-        self.sock.settimeout(0.0)
+        self.source_frame = "base"
+        self.target_frame = "camera_color_optical_frame"
+
+    def joint_callback(self, msg: JointState):
+        if len(msg.position) >= 6:
+            self.joint_angles = list(msg.position[:6])
+
+    def timer_callback(self):
         try:
-            data, addr = self.sock.recvfrom(4096)
-            msg = data.decode(errors='ignore')
-            self.get_logger().info(f'Received from {addr}: {msg}')
+            transform = self.tf_buffer.lookup_transform(
+                self.source_frame,
+                self.target_frame,
+                rclpy.time.Time(),
+            )
 
-            # TODO: convert UDP command into MoveIt / ROS 2 action/service/topic call
+            t = transform.transform.translation
+            r = transform.transform.rotation
 
-        except BlockingIOError:
-            pass
+            data = {
+                "translation": {
+                    "x": float(t.x),
+                    "y": float(t.y),
+                    "z": float(t.z),
+                },
+                "rotation": {
+                    "x": float(r.x),
+                    "y": float(r.y),
+                    "z": float(r.z),
+                    "w": float(r.w),
+                },
+                "joints": self.joint_angles,
+            }
 
-def main():
-    rclpy.init()
-    node = UDPServer()
+            message = json.dumps(data)
+            self.sock.sendto(message.encode(), (self.udp_ip, self.udp_port))
+
+        except Exception as e:
+            self.get_logger().warn(f"TF lookup failed: {str(e)}")
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = TFUDPStreamer()
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
