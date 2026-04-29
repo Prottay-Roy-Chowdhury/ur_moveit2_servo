@@ -34,6 +34,7 @@ install(PROGRAMS
   scripts/image_publisher.py
   scripts/tf_service_server.py
   scripts/tf_service_client.py
+  scripts/udp_server.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
