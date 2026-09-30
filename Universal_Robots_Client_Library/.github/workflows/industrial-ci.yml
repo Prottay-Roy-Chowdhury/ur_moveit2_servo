@@ -1,0 +1,49 @@
+name: ROS industrial ci
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  industrial_ci:
+    name: ${{matrix.ROS_DISTRO.NAME}}, ${{matrix.ROS_REPO}}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ROS_DISTRO:
+          - NAME: noetic
+            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS_Driver#master"
+            CLANG_TIDY: ""
+          - NAME: humble
+            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#humble"
+            CLANG_TIDY: ""
+          - NAME: jazzy
+            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#jazzy"
+            CLANG_TIDY: ""
+          - NAME: kilted
+            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#main"
+            CLANG_TIDY: ""
+          - NAME: rolling
+            DOWNSTREAM_WORKSPACE: "github:UniversalRobots/Universal_Robots_ROS2_Driver#main"
+            CLANG_TIDY: pedantic
+        ROS_REPO:
+          - main
+          - testing
+    env:
+      DOCKER_RUN_OPTS: '-v /var/run/docker.sock:/var/run/docker.sock --network ursim_net'
+    steps:
+      - uses: actions/checkout@v6
+      - run: docker network create --subnet=192.168.56.0/24 ursim_net
+        if: ${{ !env.ACT }}
+      - uses: 'ros-industrial/industrial_ci@master'
+        env:
+          IMMEDIATE_TEST_OUTPUT: true
+          DOWNSTREAM_CMAKE_ARGS: -DUR_ROBOT_DRIVER_BUILD_INTEGRATION_TESTS=ON
+          ADDITIONAL_DEBS: docker.io netcat-openbsd  # Needed for integration tests
+          DOWNSTREAM_WORKSPACE: ${{matrix.ROS_DISTRO.DOWNSTREAM_WORKSPACE}}
+          ROS_DISTRO: ${{matrix.ROS_DISTRO.NAME}}
+          ROS_REPO: ${{matrix.ROS_REPO}}
+          CLANG_TIDY: ${{matrix.ROS_DISTRO.CLANG_TIDY}}

@@ -1,0 +1,255 @@
+/*
+ * Copyright 2019, FZI Forschungszentrum Informatik (refactor)
+ *
+ * Copyright 2017, 2018 Simon Rasmussen (refactor)
+ *
+ * Copyright 2015, 2016 Thomas Timm Andersen (original version)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#pragma once
+#include <vector>
+#include "ur_client_library/comm/bin_parser.h"
+#include "ur_client_library/comm/pipeline.h"
+#include "ur_client_library/comm/parser.h"
+#include "ur_client_library/primary/package_header.h"
+#include "ur_client_library/primary/robot_message/key_message.h"
+#include "ur_client_library/primary/robot_message/runtime_exception_message.h"
+#include "ur_client_library/primary/robot_message/text_message.h"
+#include "ur_client_library/primary/robot_state.h"
+#include "ur_client_library/primary/robot_message.h"
+#include "ur_client_library/primary/robot_state/kinematics_info.h"
+#include "ur_client_library/primary/robot_message/version_message.h"
+#include "ur_client_library/primary/robot_message/error_code_message.h"
+#include "ur_client_library/primary/robot_state/robot_mode_data.h"
+#include "ur_client_library/primary/robot_state/configuration_data.h"
+
+namespace urcl
+{
+namespace primary_interface
+{
+/*!
+ * \brief The primary specific parser. Interprets a given byte stream as serialized primary
+ * packages and parses it accordingly.
+ */
+class PrimaryParser : public comm::Parser<PrimaryPackage>
+{
+public:
+  PrimaryParser() = default;
+  virtual ~PrimaryParser() = default;
+
+  /**!
+   * \brief Set the strict mode for parsing. If strict mode is enabled, the parser will throw an
+   * exception if a sub-package is not parsed completely. If strict mode is disabled, the parser
+   * will just log a warning and continue parsing the next sub-package.
+   *
+   * Strict mode is meant for testing only, as it may break existing applications when running
+   * against a newer software version that adds new fields to existing packages, which would lead
+   * to parsing errors of the respective sub-package.
+   *
+   * \param strict_mode Whether to enable strict mode or not.
+   */
+  void setStrictMode(bool strict_mode)
+  {
+    strict_mode_ = strict_mode;
+  }
+
+  /*!
+   * \brief Uses the given BinParser to create package objects from the contained serialization.
+   *
+   * \param bp A BinParser holding one or more serialized primary packages
+   * \param results A vector of pointers to created primary package objects
+   *
+   * \returns True, if the byte stream could successfully be parsed as primary packages, false
+   * otherwise
+   */
+  bool parse(comm::BinParser& bp, std::vector<std::unique_ptr<PrimaryPackage>>& results) override
+  {
+    int32_t packet_size;
+    RobotPackageType type;
+    bp.parse(packet_size);
+    bp.parse(type);
+
+    switch (type)
+    {
+      case RobotPackageType::ROBOT_STATE:
+      {
+        while (!bp.empty())
+        {
+          if (!bp.checkSize(sizeof(uint32_t)))
+          {
+            URCL_LOG_ERROR("Failed to read sub-package length, there's likely a parsing error");
+            return false;
+          }
+          uint32_t sub_size = bp.peek<uint32_t>();
+          if (!bp.checkSize(static_cast<size_t>(sub_size)))
+          {
+            URCL_LOG_WARN("Invalid sub-package size of %" PRIu32 " received!", sub_size);
+            return false;
+          }
+
+          // deconstruction of a sub parser will increment the position of the parent parser
+          comm::BinParser sbp(bp, sub_size);
+          sbp.consume(sizeof(sub_size));
+          RobotStateType sub_type;
+          sbp.parse(sub_type);
+
+          std::unique_ptr<PrimaryPackage> packet(stateFromType(sub_type));
+
+          if (packet == nullptr)
+          {
+            sbp.consume();
+
+            // TODO: create robot state type here
+            continue;
+          }
+
+          if (!packet->parseWith(sbp))
+          {
+            URCL_LOG_ERROR("Sub-package parsing of type %d failed!", static_cast<int>(sub_type));
+            return false;
+          }
+
+          results.push_back(std::move(packet));
+
+          if (!sbp.empty())
+          {
+            sbp.debug();
+            if (strict_mode_)
+            {
+              throw UrException("Sub-package of type " + std::string(robotStateString(sub_type)) +
+                                " was not parsed completely, and strict mode is enabled, so aborting parsing!");
+            }
+            URCL_LOG_WARN("Sub-package of type %s was not parsed completely!", robotStateString(sub_type));
+            sbp.consume();
+          }
+        }
+
+        break;
+      }
+
+      case RobotPackageType::ROBOT_MESSAGE:
+      {
+        uint64_t timestamp;
+        uint8_t source;
+        RobotMessagePackageType message_type;
+
+        bp.parse(timestamp);
+        bp.parse(source);
+        bp.parse(message_type);
+
+        std::unique_ptr<PrimaryPackage> packet(messageFromType(message_type, timestamp, source));
+        if (!packet->parseWith(bp))
+        {
+          URCL_LOG_ERROR("Package parsing of type %d failed!", static_cast<int>(message_type));
+          return false;
+        }
+
+        results.push_back(std::move(packet));
+        return true;
+        break;
+      }
+
+      default:
+      {
+        URCL_LOG_DEBUG("Invalid robot package type recieved: %u", static_cast<uint8_t>(type));
+        bp.consume();
+        return true;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * \brief Uses the given BinParser to create a single package object from the contained serialization.
+   *
+   * Note: This function assumes that the byte stream contains exactly one primary package. For
+   * packages with sub-packages this will return false.
+   *
+   * \param bp A BinParser holding one serialized primary package
+   * \param results A unique pointer to hold the created primary package object
+   *
+   * \returns True, if the byte stream could successfully be parsed as a primary package, false
+   * otherwise
+   */
+  bool parse(comm::BinParser& bp, std::unique_ptr<PrimaryPackage>& results) override
+  {
+    std::vector<std::unique_ptr<PrimaryPackage>> packages;
+    if (!parse(bp, packages))
+    {
+      return false;
+    }
+
+    if (packages.size() != 1)
+    {
+      URCL_LOG_ERROR("Expected exactly one primary package, but received %zu", packages.size());
+      return false;
+    }
+
+    results = std::move(packages[0]);
+    return true;
+  }
+
+private:
+  RobotState* stateFromType(RobotStateType type)
+  {
+    switch (type)
+    {
+      case RobotStateType::ROBOT_MODE_DATA:
+        return new RobotModeData(type);
+
+        // return new rmd;
+      // case robot_state_type::MASTERBOARD_DATA:
+      // return new MBD;*/
+      case RobotStateType::KINEMATICS_INFO:
+        return new KinematicsInfo(type);
+      case RobotStateType::CONFIGURATION_DATA:
+        return new ConfigurationData(type);
+      default:
+        return new RobotState(type);
+    }
+  }
+
+  RobotMessage* messageFromType(RobotMessagePackageType type, uint64_t timestamp, uint8_t source)
+  {
+    switch (type)
+    {
+      /*case robot_state_type::ROBOT_MODE_DATA:
+        // SharedRobotModeData* rmd = new SharedRobotModeData();
+
+        //return new rmd;
+      case robot_state_type::MASTERBOARD_DATA:
+        return new MBD;*/
+      case RobotMessagePackageType::ROBOT_MESSAGE_TEXT:
+        return new TextMessage(timestamp, source);
+      case RobotMessagePackageType::ROBOT_MESSAGE_VERSION:
+        return new VersionMessage(timestamp, source);
+      case RobotMessagePackageType::ROBOT_MESSAGE_ERROR_CODE:
+        return new ErrorCodeMessage(timestamp, source);
+      case RobotMessagePackageType::ROBOT_MESSAGE_KEY:
+        return new KeyMessage(timestamp, source);
+      case RobotMessagePackageType::ROBOT_MESSAGE_RUNTIME_EXCEPTION:
+        return new RuntimeExceptionMessage(timestamp, source);
+      default:
+        return new RobotMessage(timestamp, source, type);
+    }
+  }
+
+  bool strict_mode_ = false;  //!< If true, the parser will return false if it encounters unknown
+  // package types or sub-package types. If false, it will ignore unknown types and try to continue
+  // parsing.
+};
+
+}  // namespace primary_interface
+}  // namespace urcl

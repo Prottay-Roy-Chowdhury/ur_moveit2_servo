@@ -1,0 +1,35 @@
+name: ROS prerelease test
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  prerelease_test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ROS_DISTRO: melodic
+            OS_VERSION: bionic
+          - ROS_DISTRO: noetic
+            OS_VERSION: focal
+          - ROS_DISTRO: humble
+            OS_VERSION: jammy
+          - ROS_DISTRO: iron
+            OS_VERSION: jammy
+          - ROS_DISTRO: jazzy
+            OS_VERSION: noble
+          - ROS_DISTRO: rolling
+            OS_VERSION: noble
+
+    steps:
+      - uses: actions/checkout@v6
+      - run: sudo apt-get install -y python3-pip
+      - run: sudo pip3 install empy==3.3.4  # Added as bloom not yet support empy v4
+      - run: sudo pip3 install bloom rosdep
+      - run: sudo rosdep init
+      - run: rosdep update --rosdistro=${{ matrix.ROS_DISTRO }}
+      - run: bloom-generate rosdebian --ros-distro ${{ matrix.ROS_DISTRO }} --os-name ubuntu --os-version ${{ matrix.OS_VERSION }}

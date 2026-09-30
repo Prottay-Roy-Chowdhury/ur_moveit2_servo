@@ -1,0 +1,176 @@
+name: Integration tests
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - master
+  schedule:
+    - cron: '38 2 * * *'
+
+jobs:
+  build:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    name: build (${{matrix.env.URSIM_VERSION}}-${{matrix.env.ROBOT_MODEL}})
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - ROBOT_MODEL: 'ur5'
+            URSIM_VERSION: '3.14.3'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/cb3'
+          - ROBOT_MODEL: 'ur5e'
+            URSIM_VERSION: '5.9.4'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+          - ROBOT_MODEL: 'ur20'
+            URSIM_VERSION: 'latest'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/e-series'
+          - ROBOT_MODEL: 'ur5e'
+            URSIM_VERSION: '10.7.0'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+          - ROBOT_MODEL: 'ur5e'
+            URSIM_VERSION: '10.11.0'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+          - ROBOT_MODEL: 'ur5e'
+            URSIM_VERSION: '10.12.0'
+            PROGRAM_FOLDER: 'tests/resources/dockerursim/programs/polyscopex'
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: start ursim
+        run: |
+          scripts/start_ursim.sh -m $ROBOT_MODEL -v $URSIM_VERSION -p $PROGRAM_FOLDER -d -f DISABLED
+        env:
+          DOCKER_RUN_OPTS: --network ursim_net
+          ROBOT_MODEL: ${{matrix.env.ROBOT_MODEL}}
+          URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
+          PROGRAM_FOLDER: ${{matrix.env.PROGRAM_FOLDER}}
+      - name: install-pips
+        run: pip install pandas lxml
+      - id: check_polyscopex
+        run: |
+          if [[ "${{matrix.env.URSIM_VERSION}}" == "10."* ]]; then
+            echo "is_polyscopex=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_polyscopex=false" >> $GITHUB_OUTPUT
+          fi
+      - name: setup chrome
+        uses: browser-actions/setup-chrome@v2
+      - name: configure
+        run: >
+          mkdir build &&
+          cd build &&
+          cmake ..
+          -DBUILDING_TESTS=1
+          -DINTEGRATION_TESTS=1
+          -DWITH_ASAN=ON
+          -DPRIMARY_CLIENT_STRICT_PARSING=ON
+          -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+        env:
+          CXXFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
+          CFLAGS: -g -O2 -fprofile-arcs -ftest-coverage
+          LDFLAGS: -fprofile-arcs -ftest-coverage
+      - name: build
+        id: build
+        run: cmake --build build --config Debug
+      - name: Create folder for test artifacts
+        run: mkdir -p test_artifacts
+      - name: Access PolyScope
+        if: ${{ steps.check_polyscopex.outputs.is_polyscopex  == 'true' }}
+        run: chrome --no-sandbox --disable-settuid-sandbox --headless=new 192.168.56.101 &
+      - name: test
+        run: cd build && ctest --output-on-failure --output-junit junit.xml
+        env:
+          URSIM_VERSION: ${{matrix.env.URSIM_VERSION}}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        uses: codecov/codecov-action@v5
+        with:
+          fail_ci_if_error: true
+          files: build/junit.xml
+          report_type: test_results
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: run examples
+        run: ./run_examples.sh "192.168.56.101" 1
+      - name: install gcovr
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: sudo apt-get install -y gcovr
+      - name: gcovr
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: cd build && gcovr -r .. --xml coverage.xml --gcov-ignore-parse-errors negative_hits.warn_once_per_file --exclude "../3rdparty"
+      - name: Upload coverage reports to Codecov with GitHub Action
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        uses: codecov/codecov-action@v5
+        with:
+          fail_ci_if_error: true
+          files: build/coverage.xml
+          flags: ${{ matrix.env.ROBOT_MODEL }}-${{ matrix.env.URSIM_VERSION }}
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Generate URSim log files
+        if: ${{ always() &&  steps.check_polyscopex.outputs.is_polyscopex  == 'false' }}
+        run: |
+          nc -q 1 192.168.56.101 29999 <<END
+          saveLog
+          END
+          mkdir -p ursim_logs
+          docker cp ursim:/ursim/URControl.log ursim_logs/URControl.log
+          docker cp ursim:/ursim/polyscope.log ursim_logs/polyscope.log
+          docker cp ursim:/ursim/log_history.txt ursim_logs/log_history.txt
+      - name: Copy flight reports
+        if: ${{ failure() &&  steps.check_polyscopex.outputs.is_polyscopex  == 'false' }}
+        run: |
+          mkdir -p ursim_logs/flightreports
+          docker cp ursim:/ursim/flightreports/. ursim_logs/flightreports/
+      - name: Upload logfiles
+        uses: actions/upload-artifact@v7
+        if: ${{ always() &&  steps.check_polyscopex.outputs.is_polyscopex  == 'false' }}
+        with:
+          name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_URSim_Logs
+          path: ursim_logs
+          if-no-files-found: error
+          retention-days: 10
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v7
+        if: ${{ always() &&  steps.check_polyscopex.outputs.is_polyscopex  == 'false' }}
+        with:
+          name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_test_artifacts
+          path: test_artifacts
+          if-no-files-found: error
+          retention-days: 10
+      - name: Upload generated scripts
+        uses: actions/upload-artifact@v6
+        if: ${{ always() }}
+        with:
+          name: ${{matrix.env.ROBOT_MODEL}}_${{matrix.env.URSIM_VERSION}}_generated_scripts
+          path: test_artifacts/generated_scripts
+          if-no-files-found: warn
+          retention-days: 10
+
+  test_start_ursim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'  # Not needed with a .ruby-version, .tool-versions or mise.toml
+          bundler-cache: true  # runs 'bundle install' and caches installed gems automatically
+      - name: Setup Bats and bats libs
+        id: setup-bats
+        uses: bats-core/bats-action@4.0.0
+      - name: Install Ruby dependencies
+        run: bundle update --bundler && bundle install
+      - name: Run unittests
+        shell: bash
+        env:
+          BATS_LIB_PATH: ${{ steps.setup-bats.outputs.lib-path }}
+        run: bundle exec bashcov --skip-uncovered bats tests/test_start_ursim.bats
+      - name: Upload coverage reports to Codecov with GitHub Action
+        uses: codecov/codecov-action@v5
+        with:
+          fail_ci_if_error: true
+          flags: start_ursim
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

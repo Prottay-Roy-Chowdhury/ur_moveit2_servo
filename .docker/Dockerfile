@@ -77,8 +77,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-$ROS_DISTRO-rosbag2-py \
     ros-$ROS_DISTRO-ur \
     ros-$ROS_DISTRO-ur-msgs \
-    ros-$ROS_DISTRO-ur-description \
-    ros-$ROS_DISTRO-ur-client-library \
     ros-$ROS_DISTRO-ros2-control \
     ros-$ROS_DISTRO-ros2-controllers \
     ros-$ROS_DISTRO-realtime-tools \
@@ -122,15 +120,22 @@ COPY . /dev_ws/src
 # Remove git folder when pushing to docker hub
 # RUN rm -rf /dev_ws/src/.git
 
+
+RUN sed -i 's|<origin xyz="0 0 0" rpy="0 0 0" /> *<!-- position robot in the world -->|<origin xyz="0 0 0" rpy="0 0 -3.141592653589793" />|' \
+    /dev_ws/src/Universal_Robots_ROS2_Description/urdf/ur.urdf.xacro
+
 RUN pip3 install "setuptools<66.0.0" wheel
 WORKDIR /dev_ws
+
+
 FROM build AS bash
 
-RUN sed -i 's|<origin xyz="0 0 0" rpy="0 0 0" /> *<!-- position robot in the world -->|<origin xyz="0 0 0" rpy="0 0 -3.141592653589793" />|' /opt/ros/humble/share/ur_description/urdf/ur.urdf.xacro
+# RUN sed -i 's|<origin xyz="0 0 0" rpy="0 0 0" /> *<!-- position robot in the world -->|<origin xyz="0 0 0" rpy="0 0 -3.141592653589793" />|' /opt/ros/humble/share/ur_description/urdf/ur.urdf.xacro
 
 # RUN sed -i 's/\(\s*\)_Bool,/\1BoolType,/' /opt/mech-mind/mech-eye-sdk/include/Parameter.h
-RUN sed -i '/<command_interface name="effort"\/>/d' \
-    /opt/ros/humble/share/ur_description/urdf/ur.ros2_control.xacro
+
+# RUN sed -i '/<command_interface name="effort"\/>/d' \
+#     /opt/ros/humble/share/ur_description/urdf/ur.ros2_control.xacro
 
 RUN ["/bin/bash", "-c", "source /opt/ros/$ROS_DISTRO/setup.bash && \
      colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release"] 
@@ -141,12 +146,13 @@ ENTRYPOINT ["bash", "/entrypoint.bash"]
 
 CMD ["bash"]
 
+
 FROM build AS zsh
 
-RUN sed -i 's|<origin xyz="0 0 0" rpy="0 0 0" /> *<!-- position robot in the world -->|<origin xyz="0 0 0" rpy="0 0 -3.141592653589793" />|' /opt/ros/humble/share/ur_description/urdf/ur.urdf.xacro
+# RUN sed -i 's|<origin xyz="0 0 0" rpy="0 0 0" /> *<!-- position robot in the world -->|<origin xyz="0 0 0" rpy="0 0 -3.141592653589793" />|' /opt/ros/humble/share/ur_description/urdf/ur.urdf.xacro
 
-RUN sed -i '/<command_interface name="effort"\/>/d' \
-    /opt/ros/humble/share/ur_description/urdf/ur.ros2_control.xacro
+# RUN sed -i '/<command_interface name="effort"\/>/d' \
+#     /opt/ros/humble/share/ur_description/urdf/ur.ros2_control.xacro
 
 SHELL ["zsh", "chsh -s ~/.zshrc" ]
 

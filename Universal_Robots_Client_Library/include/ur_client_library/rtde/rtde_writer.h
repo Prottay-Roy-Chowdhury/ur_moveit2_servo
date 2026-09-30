@@ -1,0 +1,223 @@
+// this is for emacs file handling -*- mode: c++; indent-tabs-mode: nil -*-
+
+// -- BEGIN LICENSE BLOCK ----------------------------------------------
+// Copyright 2019 FZI Forschungszentrum Informatik
+// Created on behalf of Universal Robots A/S
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+// -- END LICENSE BLOCK ------------------------------------------------
+
+//----------------------------------------------------------------------
+/*!\file
+ *
+ * \author  Tristan Schnell schnell@fzi.de
+ * \date    2019-07-25
+ *
+ */
+//----------------------------------------------------------------------
+
+#ifndef UR_CLIENT_LIBRARY_RTDE_WRITER_H_INCLUDED
+#define UR_CLIENT_LIBRARY_RTDE_WRITER_H_INCLUDED
+
+#include "ur_client_library/rtde/package_header.h"
+#include "ur_client_library/rtde/rtde_package.h"
+#include "ur_client_library/rtde/data_package.h"
+#include "ur_client_library/comm/stream.h"
+#include "ur_client_library/ur/datatypes.h"
+#include <condition_variable>
+#include <thread>
+#include <mutex>
+
+namespace urcl
+{
+namespace rtde_interface
+{
+/*!
+ * \brief The RTDEWriter class offers an abstraction layer to send data to the robot via the RTDE
+ * interface. Several simple to use functions to create data packages to send exist, which are
+ * then sent to the robot in an additional thread.
+ */
+class RTDEWriter
+{
+public:
+  RTDEWriter() = delete;
+  /*!
+   * \brief Creates a new RTDEWriter object using a given URStream and recipe.
+   *
+   * \param stream The URStream to use for communication with the robot
+   * \param recipe The recipe to use for communication
+   */
+  RTDEWriter(comm::URStream<RTDEPackage>* stream, const std::vector<std::string>& recipe);
+
+  ~RTDEWriter()
+  {
+    stop();
+  }
+
+  /*!
+   * \brief Sets a new input recipe. This can be used to change the input recipe on the fly, if
+   * needed.
+   *
+   * \param recipe The new recipe to use
+   */
+  void setInputRecipe(const std::vector<std::string>& recipe);
+
+  /*!
+   * \brief Starts the writer thread, which periodically clears the queue to write packages to the
+   * robot.
+   *
+   * \param recipe_id The recipe id to use, so the robot correctly identifies the used recipe
+   */
+  void init(uint8_t recipe_id);
+  /*!
+   * \brief The writer thread loop, continually serializing and sending packages to the robot.
+   */
+  void run();
+
+  /*!
+   * \brief Stops the writer thread loop.
+   */
+  void stop();
+
+  /*!
+   * \brief Sends a complete RTDEPackage to the robot.
+   *
+   * Use this if multiple values need to be sent at once. When using the other provided functions,
+   * an RTDE data package will be sent each time.
+   *
+   * \param package The package to send
+   *
+   * \returns Success of the package creation
+   */
+  bool sendPackage(const DataPackage& package);
+
+  /*!
+   * \brief Creates a package to request setting a new value for the speed slider.
+   *
+   * \param speed_slider_fraction The new speed slider fraction as a value between 0.0 and 1.0
+   *
+   * \returns Success of the package creation
+   */
+  bool sendSpeedSlider(double speed_slider_fraction);
+  /*!
+   * \brief Creates a package to request setting a new value for one of the standard digital output pins.
+   *
+   * \param output_pin The pin to change
+   * \param value The new value
+   *
+   * \returns Success of the package creation
+   */
+  bool sendStandardDigitalOutput(uint8_t output_pin, bool value);
+  /*!
+   * \brief Creates a package to request setting a new value for one of the configurable digital output pins.
+   *
+   * \param output_pin The pin to change
+   * \param value The new value
+   *
+   * \returns Success of the package creation
+   */
+  bool sendConfigurableDigitalOutput(uint8_t output_pin, bool value);
+  /*!
+   * \brief Creates a package to request setting a new value for one of the tool output pins.
+   *
+   * \param output_pin The pin to change
+   * \param value The new value
+   *
+   * \returns Success of the package creation
+   */
+  bool sendToolDigitalOutput(uint8_t output_pin, bool value);
+  /*!
+   * \brief Creates a package to request setting a new value for one of the standard analog output pins.
+   *
+   * \param output_pin The pin to change
+   * \param value The new value, it should be between 0 and 1, where 0 is 4mA and 1 is 20mA.
+   * \param type The domain for the output can be eitherAnalogOutputType::CURRENT or  AnalogOutputType::VOLTAGE or
+   * AnalogOutputType::SET_ON_TEACH_PENDANT. In the latter case the domain is left untouched and the domain configured
+   * on the teach pendant will be used.
+   *
+   * \returns Success of the package creation
+   */
+  bool sendStandardAnalogOutput(uint8_t output_pin, double value,
+                                const AnalogOutputType type = AnalogOutputType::SET_ON_TEACH_PENDANT);
+
+  /*!
+   * \brief Creates a package to request setting a new value for an input_bit_register
+   *
+   * \param register_id The id of the register that should be changed [64..127]
+   * \param value The new value
+   *
+   * \returns Success of the package creation
+   */
+  bool sendInputBitRegister(uint32_t register_id, bool value);
+
+  /*!
+   * \brief Creates a package to request setting a new value for an input_int_register
+   *
+   * \param register_id The id of the register that should be changed [24..47]
+   * \param value The new value
+   *
+   * \returns Success of the package creation
+   */
+  bool sendInputIntRegister(uint32_t register_id, int32_t value);
+
+  /*!
+   * \brief Creates a package to request setting a new value for an input_double_register
+   *
+   * \param register_id The id of the register that should be changed [24..47]
+   * \param value The new value
+   *
+   * \returns Success of the package creation
+   */
+  bool sendInputDoubleRegister(uint32_t register_id, double value);
+
+  /*!
+   * \brief Creates a package to request setting a new value for the robot's external force/torque
+   * interface.
+   *
+   * Note: This requires that the ft_rtde_input_enable() function was called on the robot side.
+   *
+   * \param external_force_torque The new external force/torque as a vector6d_t
+   *
+   * \returns Success of the package creation
+   */
+  bool sendExternalForceTorque(const vector6d_t& external_force_torque);
+
+private:
+  void resetMasks(const std::shared_ptr<DataPackage>& buffer);
+  void markStorageToBeSent();
+
+  uint8_t pinToMask(uint8_t pin);
+  comm::URStream<RTDEPackage>* stream_;
+  std::vector<std::string> recipe_;
+  uint8_t recipe_id_;
+  std::shared_ptr<DataPackage> data_buffer0_;
+  std::shared_ptr<DataPackage> data_buffer1_;
+  std::shared_ptr<DataPackage> current_store_buffer_;
+  std::shared_ptr<DataPackage> current_send_buffer_;
+  std::vector<std::string> used_masks_;
+  std::thread writer_thread_;
+  std::atomic<bool> running_;
+  std::mutex store_mutex_;
+  std::atomic<bool> new_data_available_;
+  std::condition_variable data_available_cv_;
+
+  static const std::vector<std::string> g_preallocated_input_bit_register_keys;
+  static const std::vector<std::string> g_preallocated_input_int_register_keys;
+  static const std::vector<std::string> g_preallocated_input_double_register_keys;
+  static const std::vector<std::string> initializePreallocatedKeys(const std::string& prefix, const size_t size);
+};
+
+}  // namespace rtde_interface
+}  // namespace urcl
+
+#endif  // UR_CLIENT_LIBRARY_RTDE_WRITER_H_INCLUDED
