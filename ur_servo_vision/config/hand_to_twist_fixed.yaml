@@ -1,0 +1,33 @@
+hand_to_twist_fixed:
+  ros__parameters:
+    camera_index: 0
+    vision_hz: 20.0
+    control_hz: 100.0
+    enable_motion: true  # Keep false until offline validation is complete.
+    show_gui: true
+
+    # Magnitudes only. Axis direction is determined by hand position.
+    linear_velocity_x: 0.30   # m/s
+    linear_velocity_y: 0.30   # m/s; hand AREA controls Y
+    linear_velocity_z: 0.30   # m/s; vertical image position controls Z
+    angular_velocity_x: 0.20  # rad/s; vertical image position controls X
+    angular_velocity_y: 0.20  # rad/s; hand AREA controls Y
+    angular_velocity_z: 0.20  # rad/s; horizontal image position controls Z
+
+    # Normalized horizontal/vertical position thresholds.
+    xy_activate_threshold: 0.15
+    xy_deactivate_threshold: 0.10
+
+    # Fractional change relative to initial hand area: +/-25% on, +/-20% off.
+    area_activate_threshold: 0.25
+    area_deactivate_threshold: 0.20
+
+    measurement_alpha: 0.25
+    gesture_confirmation_frames: 3
+    axis_confirmation_frames: 2
+    tracking_timeout_sec: 0.10
+    min_valid_radius_px: 25.0
+    reset_reference_on_tracking_loss: false
+
+    twist_topic: /servo_node/delta_twist_cmds
+    command_frame: base_link

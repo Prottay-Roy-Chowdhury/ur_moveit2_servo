@@ -12,6 +12,8 @@ setup(
         ("share/" + package_name, ["package.xml"]),
         ("share/" + package_name + "/launch", glob("launch/*.py")),
         ("share/" + package_name + "/models", glob("models/*")),
+        ("share/ur_servo_vision/config",["config/hand_to_twist_fixed.yaml"],
+    ),
     ],
     install_requires=["setuptools"],
     zip_safe=True,
@@ -22,6 +24,8 @@ setup(
     entry_points={
         "console_scripts": [
             "hand_to_twist = ur_servo_vision.nodes.hand_to_twist:main",
+            "hand_to_twist_refined = ur_servo_vision.nodes.hand_to_twist_refined:main",
+            "hand_to_twist_fixed = ur_servo_vision.nodes.hand_to_twist_fixed:main",
         ],
     },
 )

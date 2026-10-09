@@ -47,6 +47,8 @@ def generate_launch_description():
             ),
             description="YAML file with initial joint positions for fake hardware",
         ),
+
+
     ]
 
     sim = LaunchConfiguration("sim")
@@ -125,11 +127,18 @@ def generate_launch_description():
         output="screen",
     )
 
+    hand_twist_config = os.path.join(
+        get_package_share_directory("ur_servo_vision"),
+        "config",
+        "hand_to_twist_fixed.yaml",
+    ),
+
     hand_to_twist_node = Node(
         package="ur_servo_vision",
-        executable="hand_to_twist",
-        name="hand_to_twist",
+        executable="hand_to_twist_fixed",
+        name="hand_to_twist_fixed",
         output="screen",
+        parameters=[hand_twist_config],
     )
 
     return LaunchDescription(
