@@ -125,7 +125,7 @@ COPY . /dev_ws/src
 RUN sed -i 's|<origin xyz="0 0 0" rpy="0 0 0" /> *<!-- position robot in the world -->|<origin xyz="0 0 0" rpy="0 0 -3.141592653589793" />|' \
     /dev_ws/src/Universal_Robots_ROS2_Description/urdf/ur.urdf.xacro
 
-RUN pip3 install "setuptools<66.0.0" wheel
+# RUN pip3 install "setuptools<66.0.0" wheel
 WORKDIR /dev_ws
 
 
