@@ -26,7 +26,7 @@ gh_direction_to_twist:
     #   Publish fixed-speed Twist commands.
     #
     # Keep false until initial validation.
-    enable_motion: false
+    enable_motion: true
 
     # ==========================================
     # FIXED LINEAR VELOCITIES
@@ -51,6 +51,6 @@ gh_direction_to_twist:
     # Isolated topic for initial testing.
     # Change to /servo_node/delta_twist_cmds
     # only when integrating with MoveIt Servo.
-    twist_topic: /gh_servo/test_twist
+    twist_topic: /servo_node/delta_twist_cmds
 
     command_frame: base_link

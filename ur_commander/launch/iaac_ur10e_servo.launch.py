@@ -9,7 +9,11 @@ from launch.actions import (
     IncludeLaunchDescription,
     GroupAction,
 )
-from launch.conditions import IfCondition, UnlessCondition
+from launch.conditions import (
+    IfCondition,
+    UnlessCondition,
+    LaunchConfigurationEquals,
+)
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.substitutions import FindPackageShare
@@ -47,12 +51,17 @@ def generate_launch_description():
             ),
             description="YAML file with initial joint positions for fake hardware",
         ),
-
-
+        DeclareLaunchArgument(
+            "teleop_source",
+            default_value="vision",
+            choices=["vision", "gh"],
+            description="Select teleoperation input: vision or gh",
+        ),
     ]
 
     sim = LaunchConfiguration("sim")
     launch_servo = LaunchConfiguration("launch_servo")
+    teleop_source = LaunchConfiguration("teleop_source")
     ur_description_package = LaunchConfiguration("description_package")
     description_file = LaunchConfiguration("description_file")
     initial_positions_file = LaunchConfiguration("initial_positions_file")
@@ -127,11 +136,15 @@ def generate_launch_description():
         output="screen",
     )
 
+    # --------------------------------------------------
+    # Mediapipe Vision Teleoperation
+    # --------------------------------------------------
+
     hand_twist_config = os.path.join(
         get_package_share_directory("ur_servo_vision"),
         "config",
         "hand_to_twist_fixed.yaml",
-    ),
+    )
 
     hand_to_twist_node = Node(
         package="ur_servo_vision",
@@ -139,6 +152,30 @@ def generate_launch_description():
         name="hand_to_twist_fixed",
         output="screen",
         parameters=[hand_twist_config],
+        condition=LaunchConfigurationEquals(
+            "teleop_source", "vision"
+        ),
+    )
+
+    # --------------------------------------------------
+    # Grasshopper Directional Teleoperation
+    # --------------------------------------------------
+
+    gh_twist_config = os.path.join(
+        get_package_share_directory("ur_servo_gh"),
+        "config",
+        "gh_direction_to_twist.yaml",
+    )
+
+    gh_direction_to_twist_node = Node(
+        package="ur_servo_gh",
+        executable="gh_direction_to_twist",
+        name="gh_direction_to_twist",
+        output="screen",
+        parameters=[gh_twist_config],
+        condition=LaunchConfigurationEquals(
+            "teleop_source", "gh"
+        ),
     )
 
     return LaunchDescription(
@@ -148,5 +185,6 @@ def generate_launch_description():
             moveit_launch,
             visualize_pose_srv_node,
             hand_to_twist_node,
+            gh_direction_to_twist_node,
         ]
     )
