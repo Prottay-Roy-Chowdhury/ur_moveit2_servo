@@ -1,0 +1,56 @@
+gh_direction_to_twist:
+  ros__parameters:
+
+    # ==========================================
+    # INPUT
+    # ==========================================
+
+    direction_topic: /gh_servo/directions
+
+    # Expected ROSBridge input rate: ~20 Hz
+    # Independent output control frequency.
+    control_hz: 100.0
+
+    # Maximum time without a valid direction message.
+    input_timeout_sec: 0.30
+
+    # ==========================================
+    # MOTION
+    # ==========================================
+
+    # False:
+    #   Calculate selected velocities,
+    #   but publish zero Twist.
+    #
+    # True:
+    #   Publish fixed-speed Twist commands.
+    #
+    # Keep false until initial validation.
+    enable_motion: false
+
+    # ==========================================
+    # FIXED LINEAR VELOCITIES
+    # ==========================================
+
+    linear_velocity_x: 0.30
+    linear_velocity_y: 0.30
+    linear_velocity_z: 0.30
+
+    # ==========================================
+    # FIXED ANGULAR VELOCITIES
+    # ==========================================
+
+    angular_velocity_x: 0.20
+    angular_velocity_y: 0.20
+    angular_velocity_z: 0.20
+
+    # ==========================================
+    # ROS OUTPUT
+    # ==========================================
+
+    # Isolated topic for initial testing.
+    # Change to /servo_node/delta_twist_cmds
+    # only when integrating with MoveIt Servo.
+    twist_topic: /gh_servo/test_twist
+
+    command_frame: base_link
